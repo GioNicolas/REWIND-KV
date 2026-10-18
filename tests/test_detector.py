@@ -1,6 +1,6 @@
 import pytest
 
-from rewind_kv.detector import detect_failure, first_sentence
+from rewind_kv.detector import clean_reason, detect_failure, first_sentence
 
 
 @pytest.mark.parametrize(
@@ -43,6 +43,35 @@ def test_decimal_point_does_not_end_sentence():
 )
 def test_detects_markers(text):
     assert detect_failure(text) is not None
+
+
+# Falsos positivos reais do piloto de 18/10/2026: os dois apagaram respostas corretas.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Wait, so does that mean the original double sum is equal to p - q? "
+        "Let me verify this step by step to make sure I didn't make a mistake.\n\n",
+        "But just to ensure I haven't made a mistake in the prime factorization or the calculations, "
+        "let me recheck each step.\n\n",
+        "Let me recheck in case I made an error. ",
+        "I did not make a mistake there. ",
+    ],
+)
+def test_ignores_verification_sentences(text):
+    assert detect_failure(text) is None
+
+
+def test_skips_verification_and_finds_later_failure():
+    text = "Let me make sure I didn't make a mistake. Hmm, that's wrong, 3*4 is 12. "
+    signal = detect_failure(text)
+    assert signal is not None
+    assert signal.reason == "Hmm, that's wrong, 3*4 is 12."
+    assert text[signal.start :].startswith("Hmm")
+
+
+def test_clean_reason():
+    assert clean_reason("Wait, no, actually, that's not correct because x < 0.") == "that's not correct because x < 0."
+    assert clean_reason("Now that's wrong.") == "Now that's wrong."
 
 
 def test_first_sentence():

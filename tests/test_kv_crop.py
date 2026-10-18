@@ -7,7 +7,7 @@ import pytest
 import torch
 from transformers import DynamicCache, Qwen2Config, Qwen2ForCausalLM
 
-from rewind_kv.controller import _forward, crop_to, rewind_and_inject
+from rewind_kv.controller import _forward, crop_to, paragraph_rewind_target, rewind_and_inject
 
 ATOL = 1e-5
 
@@ -91,3 +91,39 @@ def test_two_consecutive_rewinds(model):
 
     assert tokens == prompt + anchor1 + anchor2
     torch.testing.assert_close(logits, fresh_logits(model, prompt + anchor1 + anchor2), atol=ATOL, rtol=0)
+
+
+# Texto do problema 1 do piloto: o erro está no parágrafo da fórmula, e o
+# "Wait, no..." abre o parágrafo seguinte.
+PILOT_TEXT = (
+    "Let me list the possible ways to insert parentheses.\n\n"
+    "So, the structure is:\n\n"
+    "( (2 * 3) * (4 * 5) + 1 ) ?\n\n"
+    "Wait, no, actually, that's not correct because the original expression is a linear chain."
+)
+
+
+def _paragraphs(text, first_token=100):
+    """(token, char) de cada parágrafo, fingindo 1 token por caractere a partir de `first_token`."""
+    starts = [0] + [i + 2 for i in range(len(text)) if text.startswith("\n\n", i)]
+    return [(first_token + c, c) for c in starts]
+
+
+def test_paragraph_target_cuts_previous_paragraph_when_failure_opens_it():
+    paragraphs = _paragraphs(PILOT_TEXT)
+    sentence_start = PILOT_TEXT.index("Wait")
+    token, char = paragraph_rewind_target(paragraphs, PILOT_TEXT, sentence_start)
+    assert PILOT_TEXT[char:].startswith("( (2 * 3)")
+    assert token == 100 + char
+
+
+def test_paragraph_target_cuts_own_paragraph_when_failure_is_mid_paragraph():
+    text = "Step one is fine.\n\nThe root is the addition. Wait, no, that's not correct."
+    paragraphs = _paragraphs(text)
+    _, char = paragraph_rewind_target(paragraphs, text, text.index("Wait"))
+    assert text[char:].startswith("The root")
+
+
+def test_paragraph_target_never_goes_before_checkpoint():
+    text = "Wait, that's wrong."
+    assert paragraph_rewind_target([(100, 0)], text, 0) == (100, 0)

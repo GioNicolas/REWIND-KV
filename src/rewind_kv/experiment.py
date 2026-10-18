@@ -2,7 +2,8 @@
 
 Uso:
     python -m rewind_kv.experiment --dataset gsm8k --n 30
-    python -m rewind_kv.experiment --dataset math500 --level 5 --n 30 --modes baseline rewind_kv
+    python -m rewind_kv.experiment --dataset math500 --level 4 --n 30 --modes baseline rewind_kv
+    python -m rewind_kv.experiment --dataset math500 --level 4 --n 30 --rewind-scope attempt  # ablação
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from .controller import Mode, RewindKVGenerator
+from .controller import Mode, RewindKVGenerator, RewindScope
 from .metrics import extract_boxed, is_correct, kv_cache_bytes, peak_vram_bytes, repeated_failures, summarize
 
 DEFAULT_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
@@ -47,6 +48,12 @@ def main() -> None:
     parser.add_argument("--level", type=int, default=None, help="só para math500: nível de dificuldade (1-5)")
     parser.add_argument("--n", type=int, default=30)
     parser.add_argument("--modes", nargs="+", choices=[m.value for m in Mode], default=[m.value for m in Mode])
+    parser.add_argument(
+        "--rewind-scope",
+        choices=[s.value for s in RewindScope],
+        default=RewindScope.PARAGRAPH.value,
+        help="paragraph: corta só o passo errado; attempt: corta desde o último checkpoint (v0.1)",
+    )
     parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=Path, default=Path("results"))
@@ -69,7 +76,9 @@ def main() -> None:
             for mode in args.modes:
                 if device == "cuda":
                     torch.cuda.reset_peak_memory_stats()
-                gen = RewindKVGenerator(model, tokenizer, mode, max_new_tokens=args.max_new_tokens)
+                gen = RewindKVGenerator(
+                    model, tokenizer, mode, rewind_scope=args.rewind_scope, max_new_tokens=args.max_new_tokens
+                )
                 # Mesma semente em todos os modos: as gerações são idênticas até o primeiro corte.
                 result = gen.generate(problem["question"], seed=args.seed + i)
                 pred = extract_boxed(result.text)
