@@ -10,6 +10,7 @@
 ## Documentos deste Repositório
 
 - 📘 **[Guia de Estudo, Explicação Simples e Pitch (Caso Alguém Pergunte)](docs/guia-de-estudo-e-pitch.md):** documento feito para estudar a pesquisa do zero, entender como funciona sem jargão e responder perguntas de recrutadores, professores ou bancas técnicas.
+- 🗺️ **[Mapa da Literatura (18/10/2026)](docs/mapa-da-literatura.md):** vizinhos diretos (LPSR, Thought Rollback, Structured Thoughts), por que o caminho "cortar verificações" está ocupado e como o RewindKV se diferencia.
 - ⚙️ **[Especificação Técnica e Matemática](docs/especificacao-tecnica.md):** equações, funcionamento do `DynamicCache.crop()`, alinhamento de posição RoPE, estrutura de código e protocolo experimental.
 
 ---
@@ -41,7 +42,9 @@ Um algoritmo de intervenção em tempo de inferência (*training-free* na Fase 1
 | **R-KV** — Cai et al., NeurIPS 2025 ([arXiv:2505.24133](https://arxiv.org/abs/2505.24133)) | Comprime o KV-Cache de modelos de raciocínio removendo tokens redundantes baseados em atenção. | Apenas poda palavras soltas; **não faz rollback estrutural** de uma tentativa inteira que deu errado nem cria âncoras de erro. |
 | **InfoKV** — Kai et al., jun/2026 ([arXiv:2606.26875](https://arxiv.org/abs/2606.26875)) | Usa incerteza preditiva (*Forward Influence*) para comprimir KV-Cache em raciocínio longo. | Mantém a estrutura linear de erros; avaliado apenas em passagem contínua sem *backtracking* físico do cache. |
 | **Models Take Notes at Prefill** — Bojie Li, jun/2026 ([arXiv:2606.17107](https://arxiv.org/abs/2606.17107)) | Provou que os vetores KV funcionam como "notas de rascunho" editáveis e componíveis com reposicionamento RoPE. | Focado na fase de *prefill* (leitura do prompt), não na auto-limpeza dinâmica durante a geração do `<think>`. |
-| **ArborKV** — Chen et al., ICML 2026 ([arXiv:2605.05689](https://arxiv.org/abs/2605.05689)) | Gerencia KV-Cache em buscas em árvore externas (*Tree-of-Thoughts*). | Exige um orquestrador externo gerando múltiplas árvores paralelas caras; não opera *in-stream* dentro do fluxo nativo de um modelo R1. |
+| **ArborKV** — Chen et al., mai/2026 ([arXiv:2605.22106](https://arxiv.org/abs/2605.22106)) | Gerencia KV-Cache em buscas em árvore externas (*Tree-of-Thoughts*). | Exige um orquestrador externo gerando múltiplas árvores paralelas caras; não opera *in-stream* dentro do fluxo nativo de um modelo R1. |
+| **LPSR — Latent Phase-Shift Rollback** — Gupta & Kumar, abr/2026 ([arXiv:2604.18567](https://arxiv.org/abs/2604.18567)) | Rollback *training-free* do KV-Cache durante a geração, disparado por um sinal no *residual stream*, com correção por vetor latente (MATH-500: 28,8% → 44,0%). | Volta só **1 token**, sem âncora em texto, não testa modelos de raciocínio (`<think>`) e não economiza memória (custa ~3× mais tokens). |
+| **Thought Rollback** — Chen & Li, ICML 2024 ([arXiv:2412.19707](https://arxiv.org/abs/2412.19707)) | Volta para antes do passo errado e adiciona a tentativa falha ao prompt como "experiência". | É a ideia da âncora no nível de *prompt*, com várias chamadas ao modelo; não opera no KV-Cache dentro de uma única geração. |
 | **Aborted but Not Forgotten** — Zhang & Yang, ago/2026 ([arXiv:2608.15939](https://arxiv.org/abs/2608.15939)) | **Prova a nossa motivação:** mostrou que ramos abortados que continuam retidos no KV-Cache contaminam a atenção futura do modelo (*rollback inconsistency*). | Diagnosticou o problema de segurança/consistência em agentes, mas **não propôs o algoritmo de poda de raciocínio com substituição por Âncora de Falha**. |
 
 ---
