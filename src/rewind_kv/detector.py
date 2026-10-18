@@ -40,6 +40,10 @@ _VERIFICATION_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Suspeita não é falha: "Alternatively, maybe I made a mistake..." (piloto 2).
+# Só olha o trecho ANTES do marcador, para não descartar "This contradicts X, so maybe...".
+_HEDGE_RE = re.compile(r"\b(?:maybe|perhaps|might|possibly|probably)\b", re.IGNORECASE)
+
 _MARKER_RE = re.compile("|".join(f"(?:{m})" for m in FAILURE_MARKERS), re.IGNORECASE)
 # Ponto seguido de espaço, para não confundir com decimais ("3.5").
 _SENTENCE_END_RE = re.compile(r"[.!?](?=\s)|\n")
@@ -77,7 +81,7 @@ def detect_failure(text: str) -> FailureSignal | None:
         for s in _SENTENCE_START_RE.finditer(text, 0, m.start()):
             start = s.end()
         sentence = text[start:end]
-        if _VERIFICATION_RE.search(sentence):
+        if _VERIFICATION_RE.search(sentence) or _HEDGE_RE.search(text, start, m.start()):
             continue
         return FailureSignal(marker=m.group(0), reason=sentence.strip(), start=start, end=end)
     return None

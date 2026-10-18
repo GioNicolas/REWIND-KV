@@ -61,6 +61,30 @@ def test_ignores_verification_sentences(text):
     assert detect_failure(text) is None
 
 
+# Piloto 2: suspeitas ("maybe I made a mistake") não são erro confirmado.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Alternatively, maybe I made a mistake in the direction vectors. ",
+        "Wait, perhaps I made a mistake in setting up the direction vectors. ",
+    ],
+)
+def test_ignores_hedged_suspicions(text):
+    assert detect_failure(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "So, that contradicts my earlier conclusion. ",
+        "Wait, 720 ≠ 240, so I must have made a mistake. ",
+        "This contradicts x > 0, so maybe I should flip the sign. ",
+    ],
+)
+def test_detects_confirmed_failures_from_pilot(text):
+    assert detect_failure(text) is not None
+
+
 def test_skips_verification_and_finds_later_failure():
     text = "Let me make sure I didn't make a mistake. Hmm, that's wrong, 3*4 is 12. "
     signal = detect_failure(text)

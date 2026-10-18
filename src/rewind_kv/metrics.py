@@ -47,6 +47,10 @@ def normalize_answer(ans: str) -> str:
     ans = re.sub(r"\\text\{([^}]*)\}", r"\1", ans)
     ans = re.sub(r"\\(?:left|right|!|,|;|\s)", "", ans)
     ans = ans.replace("\\dfrac", "\\frac").replace("\\tfrac", "\\frac")
+    ans = re.sub(r"\^\{?\\circ\}?|°", "", ans)  # 90^\circ -> 90
+    ans = re.sub(r"\\?%$", "", ans)
+    ans = re.sub(r"\\sqrt(\w)", r"\\sqrt{\1}", ans)  # \sqrt2 -> \sqrt{2}
+    ans = re.sub(r"\\frac(\d)(\d)", r"\\frac{\1}{\2}", ans)  # \frac12 -> \frac{1}{2}
     ans = re.sub(r"(?<=\d),(?=\d{3}\b)", "", ans)  # 1,000 -> 1000
     return ans.replace(" ", "")
 
