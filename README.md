@@ -1,105 +1,64 @@
-# S.E.E.D.-KV: Rollback Cirúrgico de KV-Cache com Âncoras de Falha em Modelos de Raciocínio
+# RewindKV: Rollback Cirúrgico de KV-Cache em Modelos de Raciocínio
 
-**Sigla sugerida:** **S.E.E.D.-KV** (*Self-Erasing Error Drafts in KV-Cache*) — alternativa de título para artigo: **AnchorKV** ou **RewindKV**.  
+**Nome oficial do algoritmo/pesquisa:** **RewindKV** (*In-Stream KV-Cache Rollback with Failure Anchors for Reasoning Models*)  
 **Autor:** Giorgio Nicolas de A. Bertino  
-**Data de registro:** 18 de outubro de 2026  
-**Status:** Nova direção principal de pesquisa científica (baixo custo computacional, alto impacto em LLMs de raciocínio).
+**Data de início:** 18 de outubro de 2026  
+**Status:** Projeto de pesquisa em fase de implementação do protótipo experimental.
 
 ---
 
-## 1. Resumo Executivo (O que é e por que importa)
+## Documentos deste Repositório
+
+- 📘 **[Guia de Estudo, Explicação Simples e Pitch (Caso Alguém Pergunte)](docs/guia-de-estudo-e-pitch.md):** documento feito para estudar a pesquisa do zero, entender como funciona sem jargão e responder perguntas de recrutadores, professores ou bancas técnicas.
+- ⚙️ **[Especificação Técnica e Matemática](docs/especificacao-tecnica.md):** equações, funcionamento do `DynamicCache.crop()`, alinhamento de posição RoPE, estrutura de código e protocolo experimental.
+
+---
+
+## 1. Resumo Executivo (O que é o RewindKV e por que importa)
 
 Modelos modernos de raciocínio (como *DeepSeek-R1*, *Qwen-QwQ*, *OpenAI o1/o3*) resolvem problemas complexos de matemática, lógica e programação gerando longas cadeias de pensamento (`<think>...</think>`). Durante esse processo, o modelo frequentemente explora uma hipótese, percebe que ela levou a um erro ou contradição (*"Wait, that's wrong, let me recalculate..."*) e inicia uma nova tentativa.
 
 **O defeito estrutural atual:**  
-Como a geração autorregressiva nos Transformers é estritamente aditiva (*append-only*), **todos os centenas ou milhares de tokens do rascunho errado permanecem gravados na memória ativa da placa de vídeo (o KV-Cache)** até o fim da geração. Isso causa dois problemas graves:
-1. **Explosão de Memória e Latência:** O KV-Cache acumula rascunhos mortos, devorando VRAM e deixando cada novo token mais lento.
-2. **Contaminação Causal de Atenção (*Context Poisoning*):** Enquanto tenta calcular o caminho certo na segunda tentativa, o mecanismo de atenção da IA continua consultando os números e passos errados da primeira tentativa que ficaram no KV-Cache, induzindo novos erros.
+Como a geração nos Transformers é estritamente aditiva (*append-only*), **todos os centenas ou milhares de tokens do rascunho errado permanecem gravados na memória ativa da placa de vídeo (o KV-Cache)** até o fim da geração. Isso causa dois problemas graves:
+1. **Explosão de Memória e Latência:** O KV-Cache acumula rascunhos mortos, devorando memória VRAM e deixando cada palavra nova mais lenta.
+2. **Contaminação Causal de Atenção (*Context Poisoning*):** Enquanto tenta calcular o caminho certo na segunda tentativa, o mecanismo de atenção da IA continua esbarrando nos números e passos errados da primeira tentativa que ficaram no KV-Cache, induzindo novos erros.
 
-**A Nossa Solução (S.E.E.D.-KV):**  
-Um algoritmo de intervenção em tempo de inferência (*training-free* ou guiado por um detector discriminativo ultraleve) que:
-1. Marca **Checkpoints Lógicos** no KV-Cache no início de cada hipótese/passo do raciocínio;
+**A Solução RewindKV:**  
+Um algoritmo de intervenção em tempo de inferência (*training-free* na Fase 1, e guiado por um detector discriminativo ultraleve na Fase 2) que:
+1. Marca **Checkpoints Lógicos ($L_0$)** no KV-Cache no início de cada hipótese/passo do raciocínio;
 2. Detecta o instante em que a tentativa atual falha ou entra em contradição;
-3. **Executa um Rollback Físico no KV-Cache** (`DynamicCache.crop()`), apagando da memória da GPU todos os tokens do cálculo errado em frações de milissegundo;
-4. Injeta no lugar apenas uma **Âncora Negativa curta (10 a 20 tokens)** resumindo o motivo da falha (ex.: `[Nota: A tentativa X falhou porque violou Y. Não repetir.]`), impedindo que o modelo entre em loop e repita o mesmo erro.
-
-> **Por que o resultado esperado é de altíssimo impacto:**  
-> Diferente dos compressores de KV-Cache tradicionais (que apagam memória tentando "perder o mínimo possível de precisão"), o **S.E.E.D.-KV** propõe **reduzir a memória/latência E aumentar a inteligência (acurácia final) simultaneamente**, ao limpar o "lixo tóxico" dos ramos fracassados da frente da atenção do modelo.
+3. **Dá um "Rewind" (Rebobina fisicamente o KV-Cache via `DynamicCache.crop(L_0)`)**, apagando da memória da GPU todos os tokens do cálculo errado em frações de milissegundo;
+4. Injeta no lugar apenas uma **Âncora de Falha curta (10 a 20 tokens)** resumindo o motivo do erro (ex.: `[Nota: A tentativa X falhou porque violou Y. Não repetir.]`), impedindo que o modelo sofra de amnésia e repita o mesmo erro.
 
 ---
 
 ## 2. Posicionamento Científico e Literatura de Ponta (2025–2026)
 
-Esta pesquisa ataca uma lacuna exata aberta pelos artigos mais recentes publicados entre maio e agosto de 2026:
+*Nota: Verificamos no arXiv em 18/10/2026 que o nome **RewindKV** é 100% inédito na literatura (diferente de `AnchorKV`, que já foi usado para quantização/compressão estática em [arXiv:2608.02901](https://arxiv.org/abs/2608.02901)).*
 
-| Artigo Recente (Verificado) | O que descobriu / fez | O que deixou em aberto (Nossa Lacuna) |
+| Artigo Recente (Verificado) | O que descobriu / fez | O que deixou em aberto (A Lacuna do RewindKV) |
 | :--- | :--- | :--- |
 | **R-KV** — Cai et al., NeurIPS 2025 ([arXiv:2505.24133](https://arxiv.org/abs/2505.24133)) | Comprime o KV-Cache de modelos de raciocínio removendo tokens redundantes baseados em atenção. | Apenas poda palavras soltas; **não faz rollback estrutural** de uma tentativa inteira que deu errado nem cria âncoras de erro. |
 | **InfoKV** — Kai et al., jun/2026 ([arXiv:2606.26875](https://arxiv.org/abs/2606.26875)) | Usa incerteza preditiva (*Forward Influence*) para comprimir KV-Cache em raciocínio longo. | Mantém a estrutura linear de erros; avaliado apenas em passagem contínua sem *backtracking* físico do cache. |
 | **Models Take Notes at Prefill** — Bojie Li, jun/2026 ([arXiv:2606.17107](https://arxiv.org/abs/2606.17107)) | Provou que os vetores KV funcionam como "notas de rascunho" editáveis e componíveis com reposicionamento RoPE. | Focado na fase de *prefill* (leitura do prompt), não na auto-limpeza dinâmica durante a geração do `<think>`. |
 | **ArborKV** — Chen et al., ICML 2026 ([arXiv:2605.05689](https://arxiv.org/abs/2605.05689)) | Gerencia KV-Cache em buscas em árvore externas (*Tree-of-Thoughts*). | Exige um orquestrador externo gerando múltiplas árvores paralelas caras; não opera *in-stream* dentro do fluxo nativo de um modelo R1. |
-| **Aborted but Not Forgotten** — Zhang & Yang, ago/2026 ([arXiv:2608.15939](https://arxiv.org/abs/2608.15939)) | **Prova o nosso ponto central:** mostrou que ramos abortados que continuam retidos no KV-Cache contaminam a atenção futura do modelo (*rollback inconsistency*). | Diagnosticou o problema de segurança/consistência em agentes, mas **não propôs o algoritmo de poda de raciocínio com substituição por Âncora Negativa**. |
+| **Aborted but Not Forgotten** — Zhang & Yang, ago/2026 ([arXiv:2608.15939](https://arxiv.org/abs/2608.15939)) | **Prova a nossa motivação:** mostrou que ramos abortados que continuam retidos no KV-Cache contaminam a atenção futura do modelo (*rollback inconsistency*). | Diagnosticou o problema de segurança/consistência em agentes, mas **não propôs o algoritmo de poda de raciocínio com substituição por Âncora de Falha**. |
 
 ---
 
-## 3. Como Funciona a Arquitetura e o Algoritmo (Os 3 Estágios)
-
-O sistema une a filosofia **Neuro-Simbólica** do projeto S.E.E.D. (Intuição Neural + Controle/Âncoras + Operário Discriminativo Rápido):
-
-```text
-[Fluxo de Pensamento da LLM: <think>]
-       │
-       ├──► 1. CHECKPOINT: Início de nova hipótese/passo em L_0 (salva índice do KV-Cache)
-       │         "Vou tentar resolver assumindo x = 5... [800 tokens de contas]..."
-       │
-       ├──► 2. DETECÇÃO DE FALHA (Gatilho Léxico ou Operário Discriminativo em ms)
-       │         A IA percebe contradição: "Espera, isso dá 10 != 0, está errado!"
-       │
-       └──► 3. CIRURGIA S.E.E.D.-KV:
-                 (a) Extrai a Âncora Negativa curta: "[Falha: x=5 viola a condição Z]"
-                 (b) Executa Rollback Físico: kv_cache.crop(L_0) -> Apaga os 800 tokens!
-                 (c) Injeta os ~12 tokens da Âncora Negativa na posição L_0
-                 (d) Retoma a geração com o KV-Cache limpo e protegido contra repetição!
-```
-
-### Evolução em Duas Fases do Detector (Estágio 2):
-* **Fase 1 (Protótipo Imediato — *Self-Triggered*):** Usa os próprios marcadores naturais de *backtracking* que modelos como `DeepSeek-R1-Distill` já emitem quando percebem que erraram (*"Wait"*, *"However, this contradicts"*, *"Let me recalculate"*, *"That doesn't work"*), confirmados por uma verificação rápida.
-* **Fase 2 (Operário Discriminativo Estilo Jev — *Latent Probe*):** Um classificador ultraleve que monitora a entropia dos *logits* e as ativações internas a cada bloco de tokens, emitindo primitivas rápidas (`Boolean`: abortar ramo? / `Choice`: erro de conta vs. caminho sem saída) **antes** mesmo de o modelo gastar centenas de tokens escrevendo a conta errada até o fim.
-
----
-
-## 4. Desafios Técnicos e Cuidados (Onde pode dar problema e como resolver)
-
-1. **Paradoxo da Amnésia (Por que o "Corte Cego" falha):**  
-   Se você simplesmente apagar os 800 tokens errados do KV-Cache e voltar o cursor para a posição $L_0$ sem deixar nenhuma nota, a IA vai gerar exatamente os mesmos 800 tokens errados de novo (entrando em loop infinito, especialmente com temperatura baixa)!  
-   * **Solução:** É por isso que a **Âncora Negativa** é o coração da invenção. Ela ocupa apenas ~15 tokens, mas altera o contexto em $L_0$ para que a IA saiba que aquele caminho já foi testado e falhou.
-2. **Alinhamento de Posição (*RoPE — Rotary Position Embeddings*):**  
-   Quando você corta o KV-Cache na posição $L_0$ e insere os 15 tokens da Âncora Negativa, os novos tokens devem receber os índices de posição contínuos $L_0 + 1, L_0 + 2, \dots$ a partir do ponto de corte. Usando `DynamicCache.crop(L_0)` do HuggingFace `transformers` e re-executando o *forward pass* apenas nos 15 tokens da âncora, os embeddings posicionais (RoPE) ficam 100% contínuos e matematicamente exatos, sem precisar reprocessar o prompt inicial!
-3. **Falsos Positivos no Gatilho:**  
-   Às vezes o modelo diz *"Wait, let me check if this is right... yes, it is!"* (ele só conferiu, mas não estava errado).  
-   * **Solução:** O gatilho só dispara o rollback se a frase de hesitação for seguida de descarte real da hipótese, e não de confirmação.
-
----
-
-## 5. POR ONDE COMEÇAR (Roteiro Prático para o "Dia 1" no Próximo Chat)
+## 3. POR ONDE COMEÇAR (Roteiro Prático para o "Dia 1")
 
 ### Recursos e Ambiente
-* **Máquina local:** Windows com Python 3.12.10 e placa integrada AMD Radeon (ideal para escrever o código, testes unitários da estrutura do cache e scripts de análise).
-* **Execução em GPU (Gratuita):** Como modelos de raciocínio de 1.5B a 7B rodam muito mais rápido em GPU CUDA, todo experimento pesado será exportado também como um notebook `.ipynb` pronto para rodar gratuitamente em **Google Colab (GPU NVIDIA T4 - 16GB VRAM)** ou **Kaggle (2x GPU T4)**.
-* **Modelo Base Oficial do Experimento:** `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B` (super leve, ocupa apenas ~3 GB de VRAM em FP16, pensa nativamente com `<think>` e faz *backtracking* explícito).
+* **Máquina local:** Windows com Python 3.12.10 e placa integrada AMD Radeon (usada para desenvolver os módulos em `src/`, testes unitários da estrutura do cache e scripts de análise).
+* **Execução em GPU (Gratuita):** Para rodar a bateria de avaliação rapidamente, o repositório inclui geração de notebook `.ipynb` para rodar gratuitamente em **Google Colab (GPU NVIDIA T4 - 16GB VRAM)** ou **Kaggle**.
+* **Modelo Base Oficial do Experimento:** `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B` (ocupa ~3 GB de VRAM em FP16, pensa nativamente com `<think>` e faz *backtracking* explícito).
 
 ### O Experimento Decisivo (A construir primeiro)
-Criar a pasta `src/seed_kv/` com um script enxuto que rode **20 a 50 questões difíceis de matemática** (do benchmark **MATH-500** ou **GSM8K**) comparando exatamente **3 Modos**:
+Criar a pasta `src/rewind_kv/` com um script enxuto que rode **20 a 50 questões difíceis de matemática** (do benchmark **MATH-500** ou **GSM8K**) comparando exatamente **3 Modos**:
 
 1. **Modo 1 — `Baseline (Standard CoT)`:** Geração padrão sem mexer no KV-Cache.
-2. **Modo 2 — `Blind Rollback (Ablação sem Âncora)`:** Quando detecta erro no pensamento, dá `.crop()` no KV-Cache mas **não** coloca a Âncora Negativa (com temperatura 0.6 para medir quantas vezes ele repete o mesmo erro).
-3. **Modo 3 — `S.E.E.D.-KV (Rollback + Âncora Negativa)`:** Quando detecta erro no pensamento, extrai a Âncora curta, dá `.crop(L_0)` no KV-Cache, injeta a Âncora e continua.
+2. **Modo 2 — `Blind Rewind (Ablação sem Âncora)`:** Quando detecta erro no pensamento, dá `.crop(L_0)` no KV-Cache mas **não** coloca a Âncora de Falha (para medir quantas vezes o modelo sofre de amnésia e repete o mesmo erro).
+3. **Modo 3 — `RewindKV (Rollback + Âncora de Falha)`:** Quando detecta erro no pensamento, extrai a Âncora curta, dá `.crop(L_0)` no KV-Cache, injeta a Âncora e continua.
 
-### As 4 Métricas que Vamos Medir na Tela
-1. **Pico de Memória do KV-Cache** (em número máximo de tokens retidos na VRAM e em MB);
-2. **Total de Tokens Gerados e Tempo de Parede (Segundos)** até chegar na resposta final;
-3. **Taxa de Acerto (Acurácia %)** nas questões da prova;
-4. **Taxa de Repetição de Erro (Loop Rate)** comparando o Modo 2 vs. Modo 3.
-
-### Primeiros Comandos para Pedir ao Assistente no Novo Chat:
-> *"Leia o arquivo `docs/seed-kv-pesquisa.md`. Vamos iniciar a implementação da Fase 1 do S.E.E.D.-KV: crie a estrutura em `src/seed_kv/` com o gerenciador de geração customizado usando `DynamicCache.crop()` do HuggingFace Transformers (implementando os 3 modos: Baseline, Blind Rollback e S.E.E.D.-KV com Âncora Negativa) e gere também um Notebook pronto para rodar o primeiro teste com o `DeepSeek-R1-Distill-Qwen-1.5B` em problemas de matemática."*
+### Primeiros Comandos para Pedir ao Assistente ao Abrir um Chat Aqui:
+> *"Leia o `README.md` e o `docs/especificacao-tecnica.md`. Vamos iniciar a implementação da Fase 1 do RewindKV: crie a estrutura em `src/rewind_kv/` com o controlador usando `DynamicCache.crop()`, os 3 modos experimentais (Baseline, Blind Rewind e RewindKV) e gere o Notebook pronto para rodar o teste com o `DeepSeek-R1-Distill-Qwen-1.5B`."*

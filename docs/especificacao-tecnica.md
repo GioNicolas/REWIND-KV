@@ -1,6 +1,6 @@
-# Especificação Técnica e Plano de Implementação — S.E.E.D.-KV
+# Especificação Técnica e Plano de Implementação — RewindKV
 
-**Projeto:** S.E.E.D.-KV (*Self-Erasing Error Drafts in KV-Cache* / *AnchorKV*)  
+**Projeto:** **RewindKV** (*In-Stream KV-Cache Rollback with Failure Anchors for Reasoning Models*)  
 **Autor:** Giorgio Nicolas de A. Bertino  
 **Data:** 18 de outubro de 2026
 
@@ -21,53 +21,53 @@ Suponha que no índice $t = L_0$ o modelo inicie uma tentativa de resolução (H
 
 ---
 
-## 2. O Algoritmo S.E.E.D.-KV Passo a Passo
+## 2. O Algoritmo RewindKV Passo a Passo
 
 ### Passo 2.1 — Marcação de Checkpoint ($L_0$)
 Durante a geração dentro de `<think>`, o controlador registra um ponteiro de checkpoint $L_0$ sempre que um novo bloco de tentativa começa (após o prompt inicial ou após uma âncora anterior).
 
 ### Passo 2.2 — Detecção de Falha da Tentativa
 * **Versão v0.1 (Gatilho de Reversão Nativo):** Monitora o *stream* de tokens buscando marcadores de invalidação de hipótese emitidos pelo próprio modelo de raciocínio (ex.: `"Wait, that"`, `"However, this contradicts"`, `"No, that's incorrect"`, `"Let me recalculate"`, `"doesn't work"`), seguidos até o fim da sentença onde o modelo declara o motivo do erro.
-* **Versão v0.2 (Operário Discriminativo Estilo Jev — *Latent Probe*):** Um classificador ultrarrápido não-autorregressivo que lê as últimas ativações ocultas $\mathbf{h}_t$ e a entropia dos *logits* $H(p_t)$, emitindo uma decisão primitiva booleana (`Abortar_Ramo: Sim/Não`) e uma escolha (`Tipo_Falha: Conta | Lógica | Loop`) em menos de 5 ms.
+* **Versão v0.2 (Operário Discriminativo Ultrarrápido — *Latent Probe*):** Um classificador não-autorregressivo que lê as últimas ativações ocultas $\mathbf{h}_t$ e a entropia dos *logits* $H(p_t)$, emitindo uma decisão primitiva booleana (`Abortar_Ramo: Sim/Não`) e uma escolha (`Tipo_Falha: Conta | Lógica | Loop`) em menos de 5 ms.
 
-### Passo 2.3 — Síntese da Âncora Negativa ($\mathcal{A}_{\text{neg}}$)
-Antes de apagar o rascunho fracassado $[L_0 \dots L_{\text{erro}}]$, o algoritmo extrai uma **Âncora Negativa** compacta de no máximo 15 a 25 tokens:
+### Passo 2.3 — Síntese da Âncora de Falha ($\mathcal{A}_{\text{fail}}$)
+Antes de apagar o rascunho fracassado $[L_0 \dots L_{\text{erro}}]$, o algoritmo extrai uma **Âncora de Falha** compacta de no máximo 15 a 25 tokens:
 
-$$\mathcal{A}_{\text{neg}} = \text{``[Note: Previous attempt using } \langle\text{hipótese}\rangle \text{ failed due to } \langle\text{contradição}\rangle\text{. Trying a different path:]''}$$
+$$\mathcal{A}_{\text{fail}} = \text{``[Note: Previous attempt using } \langle\text{hipótese}\rangle \text{ failed due to } \langle\text{contradição}\rangle\text{. Trying a different path:]''}$$
 
-* **Como extrair $\mathcal{A}_{\text{neg}}$ sem custo:** Basta concatenar a primeira linha da tentativa (logo após $L_0$) com a linha da conclusão do erro (em $L_{\text{erro}}$), descartando todo o recheio de contas intermediárias!
+* **Como extrair $\mathcal{A}_{\text{fail}}$ sem custo extra:** Basta concatenar a primeira linha da tentativa (logo após $L_0$) com a linha da conclusão do erro (em $L_{\text{erro}}$), descartando todo o recheio de contas intermediárias!
 
-### Passo 2.4 — Rollback Físico do KV-Cache e Injeção da Âncora
+### Passo 2.4 — Rewind Físico do KV-Cache e Injeção da Âncora
 1. **Corte físico na GPU (`crop`):**
    ```python
    past_key_values.crop(L_0)
    ```
    Isso reduz instantaneamente os tensores $\mathbf{K}$ e $\mathbf{V}$ em todas as camadas para o comprimento exato $L_0$. Os 800 tokens errados deixam de existir na memória.
 2. **Injeção da Âncora com RoPE Contínuo:**
-   Os tokens de $\mathcal{A}_{\text{neg}}$ (comprimento $m \ll 800$) são passados em um único *forward pass* rápido a partir de `past_key_values` (com `cache_position` indo de $L_0$ até $L_0 + m$).
+   Os tokens de $\mathcal{A}_{\text{fail}}$ (comprimento $m \ll 800$) são passados em um único *forward pass* rápido a partir de `past_key_values` (com `cache_position` indo de $L_0$ até $L_0 + m$).
 3. **Atualização do Checkpoint:**
-   O novo checkpoint passa a ser $L_0^{\text{novo}} = L_0 + m$, garantindo que a Âncora Negativa fique **protegida (trancada)** no cache enquanto o modelo inicia a próxima tentativa!
+   O novo checkpoint passa a ser $L_0^{\text{novo}} = L_0 + m$, garantindo que a Âncora de Falha fique **protegida (trancada)** no cache enquanto o modelo inicia a próxima tentativa!
 
 ---
 
 ## 3. Arquitetura de Pastas a Criar no Dia 1
 
-Quando começar a programação neste repositório, a estrutura recomendada é:
-
 ```text
-SEED-KV/
-├── README.md                        # Visão geral e guia de início rápido
+REWIND-KV/
+├── README.md                           # Visão geral e guia de início rápido
 ├── docs/
-│   └── especificacao-tecnica.md     # Este documento
+│   ├── guia-de-estudo-e-pitch.md       # Guia de estudo e respostas para entrevistas/bancas
+│   └── especificacao-tecnica.md        # Este documento
 ├── src/
-│   ├── __init__.py
-│   ├── kv_controller.py             # Classe SEEDKVGenerator com DynamicCache.crop() e Âncoras
-│   ├── detector.py                  # Gatilho de falha (v0.1 léxico + v0.2 probe discriminativo)
-│   └── metrics.py                   # Medição de VRAM, tamanho de KV-Cache, tokens e acurácia
+│   └── rewind_kv/
+│       ├── __init__.py
+│       ├── controller.py               # Classe RewindKVGenerator com DynamicCache.crop() e Âncoras
+│       ├── detector.py                 # Gatilho de falha (v0.1 léxico + v0.2 probe discriminativo)
+│       └── metrics.py                  # Medição de VRAM, tamanho de KV-Cache, tokens e acurácia
 ├── notebooks/
-│   └── colab_experimento_seed_kv.ipynb  # Notebook pronto para rodar na GPU T4 do Google Colab
+│   └── colab_experimento_rewind_kv.ipynb # Notebook pronto para rodar na GPU T4 do Google Colab
 └── tests/
-    └── test_kv_crop.py              # Teste unitário local (roda na CPU em 2 segundos)
+    └── test_kv_crop.py                 # Teste unitário local (roda na CPU em 2 segundos)
 ```
 
 ---
@@ -75,4 +75,4 @@ SEED-KV/
 ## 4. Critério de Sucesso do Primeiro Experimento (Go / No-Go)
 
 Ao rodar 30 problemas do benchmark **MATH** / **GSM8K** onde o modelo `DeepSeek-R1-Distill-Qwen-1.5B` faz pelo menos 1 *backtracking*:
-* **Sucesso Forte:** O modo `S.E.E.D.-KV` reduz o tamanho final do KV-Cache das tentativas erradas em **$>50\%$**, evita os loops de repetição do modo `Blind Rollback` (sem âncora) e **mantém ou aumenta a acurácia final** em relação ao `Baseline` padrão.
+* **Sucesso Forte:** O modo `RewindKV` reduz o tamanho final do KV-Cache das tentativas erradas em **$>50\%$**, evita os loops de repetição do modo `Blind Rewind` (sem âncora) e **mantém ou aumenta a acurácia final** em relação ao `Baseline` padrão.
