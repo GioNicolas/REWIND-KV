@@ -23,7 +23,7 @@ from .metrics import extract_boxed, is_correct, kv_cache_bytes, peak_vram_bytes,
 DEFAULT_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
 
-def load_problems(dataset: str, n: int, level: int | None = None) -> list[dict]:
+def load_problems(dataset: str, level: int | None = None) -> list[dict]:
     from datasets import load_dataset
 
     if dataset == "gsm8k":
@@ -38,7 +38,7 @@ def load_problems(dataset: str, n: int, level: int | None = None) -> list[dict]:
         ]
     else:
         raise ValueError(f"dataset desconhecido: {dataset}")
-    return problems[:n]
+    return problems
 
 
 def main() -> None:
@@ -47,6 +47,7 @@ def main() -> None:
     parser.add_argument("--dataset", choices=["gsm8k", "math500"], default="gsm8k")
     parser.add_argument("--level", type=int, default=None, help="só para math500: nível de dificuldade (1-5)")
     parser.add_argument("--n", type=int, default=30)
+    parser.add_argument("--start", type=int, default=0, help="pula os primeiros problemas (para retomar uma execução que caiu)")
     parser.add_argument("--modes", nargs="+", choices=[m.value for m in Mode], default=[m.value for m in Mode])
     parser.add_argument(
         "--rewind-scope",
@@ -65,14 +66,15 @@ def main() -> None:
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=dtype).to(device).eval()
     dtype_bytes = torch.finfo(dtype).bits // 8
 
-    problems = load_problems(args.dataset, args.n, args.level)
+    problems = load_problems(args.dataset, args.level)
+    selected = list(enumerate(problems))[args.start : args.start + args.n]
     args.out.mkdir(parents=True, exist_ok=True)
     out_path = args.out / f"{args.dataset}_{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
-    print(f"{len(problems)} problemas x {len(args.modes)} modos em {device} -> {out_path}")
+    print(f"{len(selected)} problemas x {len(args.modes)} modos em {device} -> {out_path}")
 
     records = []
     with out_path.open("w", encoding="utf-8") as f:
-        for i, problem in enumerate(problems):
+        for i, problem in selected:
             for mode in args.modes:
                 if device == "cuda":
                     torch.cuda.reset_peak_memory_stats()
@@ -97,7 +99,7 @@ def main() -> None:
                 f.flush()
                 records.append(record)
                 print(
-                    f"[{i + 1}/{len(problems)}] {mode:<13} correct={record['correct']!s:<5} "
+                    f"[{i + 1}/{args.start + len(selected)}] {mode:<13} correct={record['correct']!s:<5} "
                     f"cache={result.final_cache_len:>5} gerados={result.generated_tokens:>5} "
                     f"deteccoes={result.detections} rewinds={len(result.rewinds)} {result.seconds:.0f}s"
                 )
