@@ -43,6 +43,8 @@ $$\mathcal{A}_{\text{fail}} = \text{``[Note: Previous attempt using } \langle\te
    past_key_values.crop(L_0)
    ```
    Isso reduz instantaneamente os tensores $\mathbf{K}$ e $\mathbf{V}$ em todas as camadas para o comprimento exato $L_0$. Os 800 tokens errados deixam de existir na memória.
+
+   > **Atenção (transformers ≥ 5):** `crop(n)` com `n` positivo (tamanho absoluto) passou a lançar `ValueError`. A forma suportada é `crop(-k)`, que remove os `k` últimos tokens e funciona também na 4.x. No código isso fica encapsulado em `crop_to(cache, L_0)` (`src/rewind_kv/controller.py`). Na prática o corte vai até $L_0 - 1$ e o token $L_0 - 1$ é reprocessado junto com a âncora, porque o estado oculto dele (necessário para amostrar o próximo token) não fica no cache.
 2. **Injeção da Âncora com RoPE Contínuo:**
    Os tokens de $\mathcal{A}_{\text{fail}}$ (comprimento $m \ll 800$) são passados em um único *forward pass* rápido a partir de `past_key_values` (com `cache_position` indo de $L_0$ até $L_0 + m$).
 3. **Atualização do Checkpoint:**

@@ -60,5 +60,20 @@ Criar a pasta `src/rewind_kv/` com um script enxuto que rode **20 a 50 questões
 2. **Modo 2 — `Blind Rewind (Ablação sem Âncora)`:** Quando detecta erro no pensamento, dá `.crop(L_0)` no KV-Cache mas **não** coloca a Âncora de Falha (para medir quantas vezes o modelo sofre de amnésia e repete o mesmo erro).
 3. **Modo 3 — `RewindKV (Rollback + Âncora de Falha)`:** Quando detecta erro no pensamento, extrai a Âncora curta, dá `.crop(L_0)` no KV-Cache, injeta a Âncora e continua.
 
+### Como Rodar (Fase 1 implementada)
+
+```bash
+python -m venv .venv
+.venv/Scripts/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu   # CPU local
+.venv/Scripts/python -m pip install -e ".[dev]"
+.venv/Scripts/python -m pytest -q          # testes do crop/RoPE e do detector (CPU, ~10 s)
+```
+
+O experimento com o modelo de verdade roda na GPU pelo notebook [`notebooks/colab_experimento_rewind_kv.ipynb`](notebooks/colab_experimento_rewind_kv.ipynb), ou direto com:
+
+```bash
+python -m rewind_kv.experiment --dataset math500 --level 5 --n 30
+```
+
 ### Primeiros Comandos para Pedir ao Assistente ao Abrir um Chat Aqui:
 > *"Leia o `README.md` e o `docs/especificacao-tecnica.md`. Vamos iniciar a implementação da Fase 1 do RewindKV: crie a estrutura em `src/rewind_kv/` com o controlador usando `DynamicCache.crop()`, os 3 modos experimentais (Baseline, Blind Rewind e RewindKV) e gere o Notebook pronto para rodar o teste com o `DeepSeek-R1-Distill-Qwen-1.5B`."*
