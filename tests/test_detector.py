@@ -1,6 +1,6 @@
 import pytest
 
-from rewind_kv.detector import clean_reason, detect_failure, first_sentence
+from rewind_kv.detector import clean_reason, detect_failure, first_sentence, informative_sentence, opens_branch
 
 
 @pytest.mark.parametrize(
@@ -100,3 +100,47 @@ def test_clean_reason():
 
 def test_first_sentence():
     assert first_sentence("\n  Let's try x = 2. Then 2x = 4.\nMore") == "Let's try x = 2."
+
+
+def test_clean_reason_strips_hold_on():
+    assert clean_reason("But hold on, I think I made a mistake there.") == "I think I made a mistake there."
+
+
+# Aberturas reais de caminhos que falharam no Experimento A.
+@pytest.mark.parametrize(
+    "paragraph",
+    [
+        "Alternatively, if I didn't treat them as a single block, but instead considered the three of them",
+        "Wait, perhaps the points are not in order? Maybe the order is different.",
+        "Hmm, maybe the diagonals are BC and AD? Let's see.",
+        "Wait, let me try this. Let's denote point D as (x, y).",
+        "So, if I let:",
+        "\n  Let's try x = 2.",
+        "Another approach: count the complement.",
+    ],
+)
+def test_opens_branch(paragraph):
+    assert opens_branch(paragraph)
+
+
+@pytest.mark.parametrize(
+    "paragraph",
+    [
+        "Let me compute the dot product.",
+        "So, the octal number is 6 3 2 5, which is 6325.",
+        "Wait, so in the first line, direction vector is (1/2, 1/3, -1).",
+        "Therefore, a + b = (-3) + 2 = -1",
+        "Wait, perhaps when I converted the binary to decimal, I made a mistake.",
+        "Iffy step: x = 3.",
+    ],
+)
+def test_does_not_open_branch(paragraph):
+    assert not opens_branch(paragraph)
+
+
+def test_informative_sentence_skips_fillers_and_numbers():
+    assert informative_sentence("Wait, hold on, no. Wait, the direction vectors are (3, 2, -6).") == (
+        "Wait, the direction vectors are (3, 2, -6)."
+    )
+    assert informative_sentence("0 1 0 | 1 0 1 | 0 1 0\n\nSo the octal number is 6325") == "So the octal number is 6325"
+    assert informative_sentence("Hmm.") == "Hmm."  # sem frase melhor: cai na primeira

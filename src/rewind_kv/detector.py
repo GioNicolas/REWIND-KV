@@ -48,7 +48,20 @@ _MARKER_RE = re.compile("|".join(f"(?:{m})" for m in FAILURE_MARKERS), re.IGNORE
 # Ponto seguido de espaço, para não confundir com decimais ("3.5").
 _SENTENCE_END_RE = re.compile(r"[.!?](?=\s)|\n")
 _SENTENCE_START_RE = re.compile(r"[.!?]\s|\n")
-_FILLER_RE = re.compile(r"^(?:(?:wait|hmm+|oh|no|but|actually|so|okay|ok)\b[\s,.!]*)+", re.IGNORECASE)
+_FILLER_RE = re.compile(r"^(?:(?:wait|hmm+|oh|no|but|actually|so|okay|ok|hold on)\b[\s,.!]*)+", re.IGNORECASE)
+
+# Frases que abrem um caminho novo ("Alternatively, ...", "Let me try ...", "Suppose ...").
+# No Experimento A, cortar só o parágrafo do "errei" deixava as premissas do caminho
+# no cache, e o modelo refazia a mesma conta logo depois da âncora.
+_BRANCH_OPENER_RE = re.compile(
+    r"(?:(?:wait|hmm+|oh|but|okay|ok|so|actually|no|hold on)\b[\s,.!]*)*"
+    r"(?:alternatively|another (?:way|approach|method|idea)|instead|suppose|assume|what if|if I"
+    r"|let me (?:try|consider|approach|use|think (?:differently|of another|about another))"
+    rf"|let{_APOS}?s (?:try|consider)"
+    rf"|(?:maybe|perhaps) (?:I should|we should|I can|I could|we can|we could|the|it{_APOS}?s))\b",
+    re.IGNORECASE,
+)
+_WORD_RE = re.compile(r"[A-Za-z]{2,}")
 
 # Se o modelo não fechar a frase, corta o motivo depois deste tanto de caracteres.
 MAX_REASON_CHARS = 200
@@ -100,3 +113,27 @@ def first_sentence(text: str) -> str:
             end_m = _SENTENCE_END_RE.search(line + " ")
             return line[: end_m.end()] if end_m else line
     return ""
+
+
+def _sentences(text: str):
+    for line in text.splitlines():
+        line = line.strip()
+        start = 0
+        for m in _SENTENCE_END_RE.finditer(line + " "):
+            yield line[start : m.end()].strip()
+            start = m.end()
+        if line[start:].strip():
+            yield line[start:].strip()
+
+
+def informative_sentence(text: str, min_words: int = 4) -> str:
+    """Primeira frase com conteúdo: pula "Wait, hold on, no." e linhas só de números ("0 1 0 | 1 0 1")."""
+    for sentence in _sentences(text):
+        if len(_WORD_RE.findall(_FILLER_RE.sub("", sentence))) >= min_words:
+            return sentence
+    return first_sentence(text)
+
+
+def opens_branch(paragraph: str) -> bool:
+    """O parágrafo começa um caminho novo? ("Alternatively, ...", "Wait, maybe the ...", "Let me try ...")."""
+    return _BRANCH_OPENER_RE.match(paragraph.lstrip()) is not None

@@ -4,6 +4,7 @@ Uso:
     python -m rewind_kv.experiment --dataset gsm8k --n 30
     python -m rewind_kv.experiment --dataset math500 --level 4 --n 30 --modes baseline rewind_kv
     python -m rewind_kv.experiment --dataset math500 --level 4 --n 30 --rewind-scope attempt  # ablação
+    python -m rewind_kv.experiment --dataset math500 --level 4 --problems 0 3 6 --modes rewind_kv  # só esses
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from .controller import Mode, RewindKVGenerator, RewindScope
+from .controller import AnchorStyle, Mode, RewindKVGenerator, RewindScope
 from .metrics import extract_boxed, is_correct, kv_cache_bytes, peak_vram_bytes, repeated_failures, summarize
 
 DEFAULT_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
@@ -48,12 +49,20 @@ def main() -> None:
     parser.add_argument("--level", type=int, default=None, help="só para math500: nível de dificuldade (1-5)")
     parser.add_argument("--n", type=int, default=30)
     parser.add_argument("--start", type=int, default=0, help="pula os primeiros problemas (para retomar uma execução que caiu)")
+    parser.add_argument("--problems", type=int, nargs="+", help="roda só estes índices (ignora --start e --n)")
     parser.add_argument("--modes", nargs="+", choices=[m.value for m in Mode], default=[m.value for m in Mode])
     parser.add_argument(
         "--rewind-scope",
         choices=[s.value for s in RewindScope],
-        default=RewindScope.PARAGRAPH.value,
-        help="paragraph: corta só o passo errado; attempt: corta desde o último checkpoint (v0.1)",
+        default=RewindScope.BRANCH.value,
+        help="branch: volta até o início do caminho que falhou (v0.2); paragraph: só o passo errado (Exp. A); "
+        "attempt: desde o último checkpoint (v0.1)",
+    )
+    parser.add_argument(
+        "--anchor-style",
+        choices=[s.value for s in AnchorStyle],
+        default=AnchorStyle.VOICE.value,
+        help="voice: na voz do modelo (v0.2); note: [Note: ...] (Exp. A)",
     )
     parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--seed", type=int, default=0)
@@ -67,19 +76,30 @@ def main() -> None:
     dtype_bytes = torch.finfo(dtype).bits // 8
 
     problems = load_problems(args.dataset, args.level)
-    selected = list(enumerate(problems))[args.start : args.start + args.n]
+    if args.problems:
+        selected = [(i, problems[i]) for i in args.problems]
+    else:
+        selected = list(enumerate(problems))[args.start : args.start + args.n]
     args.out.mkdir(parents=True, exist_ok=True)
     out_path = args.out / f"{args.dataset}_{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
     print(f"{len(selected)} problemas x {len(args.modes)} modos em {device} -> {out_path}")
 
     records = []
     with out_path.open("w", encoding="utf-8") as f:
-        for i, problem in selected:
+        # Com --start, a contagem continua de onde parou ("[N/30]" diz o que já terminou).
+        first = 1 if args.problems else args.start + 1
+        total = first - 1 + len(selected)
+        for pos, (i, problem) in enumerate(selected, start=first):
             for mode in args.modes:
                 if device == "cuda":
                     torch.cuda.reset_peak_memory_stats()
                 gen = RewindKVGenerator(
-                    model, tokenizer, mode, rewind_scope=args.rewind_scope, max_new_tokens=args.max_new_tokens
+                    model,
+                    tokenizer,
+                    mode,
+                    rewind_scope=args.rewind_scope,
+                    anchor_style=args.anchor_style,
+                    max_new_tokens=args.max_new_tokens,
                 )
                 # Mesma semente em todos os modos: as gerações são idênticas até o primeiro corte.
                 result = gen.generate(problem["question"], seed=args.seed + i)
@@ -99,7 +119,8 @@ def main() -> None:
                 f.flush()
                 records.append(record)
                 print(
-                    f"[{i + 1}/{args.start + len(selected)}] {mode:<13} correct={record['correct']!s:<5} "
+                    f"[{pos}/{total}] "
+                    f"p{i:<3} {mode:<13} correct={record['correct']!s:<5} "
                     f"cache={result.final_cache_len:>5} gerados={result.generated_tokens:>5} "
                     f"deteccoes={result.detections} rewinds={len(result.rewinds)} {result.seconds:.0f}s"
                 )

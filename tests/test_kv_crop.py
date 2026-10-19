@@ -7,7 +7,7 @@ import pytest
 import torch
 from transformers import DynamicCache, Qwen2Config, Qwen2ForCausalLM
 
-from rewind_kv.controller import _forward, crop_to, paragraph_rewind_target, rewind_and_inject
+from rewind_kv.controller import _forward, branch_rewind_target, crop_to, paragraph_rewind_target, rewind_and_inject
 
 ATOL = 1e-5
 
@@ -127,3 +127,35 @@ def test_paragraph_target_cuts_own_paragraph_when_failure_is_mid_paragraph():
 def test_paragraph_target_never_goes_before_checkpoint():
     text = "Wait, that's wrong."
     assert paragraph_rewind_target([(100, 0)], text, 0) == (100, 0)
+
+
+# Problema 3 do Experimento A: o caminho errado ("fixar o Pierre") abre dois
+# parágrafos antes do "contradicts". Cortar só o parágrafo da conta deixava a
+# premissa no cache, e o modelo chegava de novo em 240.
+EXP_A_TEXT = (
+    "Treating them as a block: (8 - 3)! x 3! = 720.\n\n"
+    "Alternatively, if I fix Pierre's position, Rosa and Thomas sit next to him.\n\n"
+    "So that's 2 choices, and the other 5 people give 5! ways.\n\n"
+    "Calculating that: 2 x 120 = 240. Wait, but this contradicts my previous answer of 720."
+)
+
+
+def test_branch_target_goes_back_to_the_opener():
+    paragraphs = _paragraphs(EXP_A_TEXT)
+    token, char = branch_rewind_target(paragraphs, EXP_A_TEXT, EXP_A_TEXT.index("Wait"))
+    assert EXP_A_TEXT[char:].startswith("Alternatively")
+    assert token == 100 + char
+
+
+def test_branch_target_without_opener_falls_back_to_the_step():
+    text = "Treating them as a block gives 720.\n\nCalculating that: 2 x 120 = 240. Wait, that's wrong."
+    paragraphs = _paragraphs(text)
+    assert branch_rewind_target(paragraphs, text, text.index("Wait")) == paragraph_rewind_target(
+        paragraphs, text, text.index("Wait")
+    )
+
+
+def test_branch_target_never_goes_before_checkpoint():
+    text = "Calculating: 2 x 120 = 240.\n\nWait, that's wrong."
+    paragraphs = _paragraphs(text)
+    assert branch_rewind_target(paragraphs, text, text.index("Wait")) == (100, 0)

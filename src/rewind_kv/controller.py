@@ -9,9 +9,17 @@ mesmo detector; só muda o que acontece quando uma falha é detectada:
 
 O escopo do corte também é configurável:
 
-- paragraph:  corta só o passo errado (padrão);
+- branch:     volta até a frase que abriu o caminho que falhou ("Alternatively,
+              ...", "Let me try ..."); sem ela, corta só o passo errado (padrão, v0.2);
+- paragraph:  corta só o passo errado (Experimento A: as premissas ficavam no
+              cache e o modelo refazia a mesma conta);
 - attempt:    corta tudo desde o último checkpoint (v0.1 original; no piloto
               apagava raciocínio certo por causa de um erro local).
+
+E o formato da âncora:
+
+- voice:  na voz do próprio modelo ("Wait, I already tried this before: ...") (padrão, v0.2);
+- note:   entre colchetes ("[Note: ... Do not repeat it.]"), usado no Experimento A.
 """
 
 from __future__ import annotations
@@ -23,10 +31,9 @@ from enum import Enum
 import torch
 from transformers import DynamicCache
 
-from .detector import clean_reason, detect_failure, first_sentence
+from .detector import clean_reason, detect_failure, first_sentence, informative_sentence, opens_branch
 
 BOXED_INSTRUCTION = "\nPlease reason step by step, and put your final answer within \\boxed{}."
-ANCHOR_TEMPLATE = '[Note: "{hypothesis}" was wrong: {reason} Do not repeat it.]\n\n'
 
 
 class Mode(str, Enum):
@@ -36,8 +43,27 @@ class Mode(str, Enum):
 
 
 class RewindScope(str, Enum):
+    BRANCH = "branch"
     PARAGRAPH = "paragraph"
     ATTEMPT = "attempt"
+
+
+class AnchorStyle(str, Enum):
+    VOICE = "voice"
+    NOTE = "note"
+
+
+# No Experimento A o modelo ignorava o "[Note: ...]" e refazia a conta cortada;
+# a hipótese da v0.2 é que ele segue melhor um texto que parece escrito por ele mesmo.
+ANCHOR_TEMPLATES = {
+    AnchorStyle.VOICE: (
+        'Wait, I already tried this before: "{hypothesis}" It was wrong: {reason} '
+        "I will not repeat it, so let me do it differently.\n\n"
+    ),
+    AnchorStyle.NOTE: '[Note: "{hypothesis}" was wrong: {reason} Do not repeat it.]\n\n',
+}
+# A âncora na voz do modelo cita a frase que abriu o caminho, que costuma ser mais longa.
+DEFAULT_HYPOTHESIS_TOKENS = {AnchorStyle.VOICE: 24, AnchorStyle.NOTE: 12}
 
 
 @dataclass
@@ -49,12 +75,14 @@ class RewindEvent:
     reason: str
     anchor: str
     anchor_tokens: int
+    resume_char: int  # offset em GenerationResult.text logo após a âncora: onde o modelo retomou
 
 
 @dataclass
 class GenerationResult:
     mode: str
     rewind_scope: str
+    anchor_style: str
     text: str  # o que sobrou no cache depois do prompt (com âncoras, sem rascunhos cortados)
     prompt_tokens: int
     final_cache_len: int
@@ -121,6 +149,21 @@ def paragraph_rewind_target(paragraphs: list[tuple[int, int]], text: str, senten
     return paragraphs[k]
 
 
+def branch_rewind_target(paragraphs: list[tuple[int, int]], text: str, sentence_start: int) -> tuple[int, int]:
+    """Escolhe para onde cortar no escopo de caminho.
+
+    Parte do passo errado (como no escopo de parágrafo) e volta até o último
+    parágrafo que abriu um caminho novo ("Alternatively, ...", "Let me try ...").
+    Sem frase de abertura na tentativa atual, fica no passo errado.
+    """
+    target = paragraph_rewind_target(paragraphs, text, sentence_start)
+    k = paragraphs.index(target)
+    for token, char in reversed(paragraphs[: k + 1]):
+        if opens_branch(text[char:]):
+            return token, char
+    return target
+
+
 def _sample(logits: torch.Tensor, temperature: float, top_p: float, generator: torch.Generator) -> int:
     if temperature <= 0:
         return int(logits.argmax())
@@ -138,25 +181,29 @@ class RewindKVGenerator:
         tokenizer,
         mode: Mode | str = Mode.REWIND_KV,
         *,
-        rewind_scope: RewindScope | str = RewindScope.PARAGRAPH,
+        rewind_scope: RewindScope | str = RewindScope.BRANCH,
+        anchor_style: AnchorStyle | str = AnchorStyle.VOICE,
         max_new_tokens: int = 4096,
         temperature: float = 0.6,  # valores recomendados pela DeepSeek para o R1
         top_p: float = 0.95,
         min_cut_tokens: int = 32,  # cortes menores que a âncora não economizam nada
+        max_cut_tokens: int = 1024,  # caminho maior que isso: corta só o passo errado
         max_rewinds: int = 8,  # evita loop infinito, principalmente no blind_rewind
-        max_hypothesis_tokens: int = 12,
+        max_hypothesis_tokens: int | None = None,
         max_reason_tokens: int = 20,
     ):
         self.model = model
         self.tokenizer = tokenizer
         self.mode = Mode(mode)
         self.rewind_scope = RewindScope(rewind_scope)
+        self.anchor_style = AnchorStyle(anchor_style)
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
         self.top_p = top_p
         self.min_cut_tokens = min_cut_tokens
+        self.max_cut_tokens = max_cut_tokens
         self.max_rewinds = max_rewinds
-        self.max_hypothesis_tokens = max_hypothesis_tokens
+        self.max_hypothesis_tokens = max_hypothesis_tokens or DEFAULT_HYPOTHESIS_TOKENS[self.anchor_style]
         self.max_reason_tokens = max_reason_tokens
 
     def build_prompt_ids(self, question: str) -> list[int]:
@@ -174,12 +221,28 @@ class RewindKVGenerator:
         return self.tokenizer.decode(ids[:max_tokens]).rstrip() + "..."
 
     def build_anchor(self, cut_text: str, reason: str) -> str:
-        """Âncora de Falha = 1ª frase do trecho cortado (o passo errado) + frase do erro, sem as contas do meio."""
-        hypothesis = first_sentence(cut_text).replace('"', "'")
-        return ANCHOR_TEMPLATE.format(
-            hypothesis=self._truncate(hypothesis, self.max_hypothesis_tokens),
+        """Âncora de Falha = frase que abre o trecho cortado (o caminho errado) + frase do erro, sem as contas do meio."""
+        if self.anchor_style == AnchorStyle.NOTE:
+            hypothesis = first_sentence(cut_text)  # como no Experimento A
+        else:
+            # Só o que vem antes da frase do erro, senão a "hipótese" vira o próprio motivo.
+            before = cut_text[: cut_text.find(reason)] if reason in cut_text else cut_text
+            hypothesis = informative_sentence(before) or informative_sentence(cut_text)
+        return ANCHOR_TEMPLATES[self.anchor_style].format(
+            hypothesis=self._truncate(hypothesis.replace('"', "'"), self.max_hypothesis_tokens),
             reason=self._truncate(clean_reason(reason), self.max_reason_tokens),
         )
+
+    def rewind_target(self, paragraphs: list[tuple[int, int]], text: str, sentence_start: int, n_tokens: int) -> tuple[int, int]:
+        """(índice do token, offset em `text`) para onde cortar, conforme o escopo."""
+        if self.rewind_scope == RewindScope.ATTEMPT:
+            return paragraphs[0]
+        step = paragraph_rewind_target(paragraphs, text, sentence_start)
+        if self.rewind_scope == RewindScope.BRANCH:
+            branch = branch_rewind_target(paragraphs, text, sentence_start)
+            if n_tokens - branch[0] <= self.max_cut_tokens:
+                return branch
+        return step
 
     @torch.no_grad()
     def generate(self, question: str, seed: int = 0) -> GenerationResult:
@@ -226,10 +289,7 @@ class RewindKVGenerator:
                 continue
             detected_reasons.append(signal.reason)
 
-            if self.rewind_scope == RewindScope.PARAGRAPH:
-                cut_token, cut_char = paragraph_rewind_target(paragraphs, attempt_text, signal.start)
-            else:
-                cut_token, cut_char = checkpoint, 0
+            cut_token, cut_char = self.rewind_target(paragraphs, attempt_text, signal.start, len(tokens))
             cut_len = len(tokens) - cut_token
             can_rewind = (
                 self.mode != Mode.BASELINE
@@ -244,6 +304,7 @@ class RewindKVGenerator:
             cut_text = attempt_text[cut_char:]
             anchor = self.build_anchor(cut_text, signal.reason) if self.mode == Mode.REWIND_KV else ""
             anchor_ids = self.tokenizer(anchor, add_special_tokens=False).input_ids if anchor else []
+            logits = rewind_and_inject(self.model, cache, tokens, cut_token, anchor_ids)
             rewinds.append(
                 RewindEvent(
                     generated_at=generated,
@@ -253,15 +314,16 @@ class RewindKVGenerator:
                     reason=signal.reason,
                     anchor=anchor,
                     anchor_tokens=len(anchor_ids),
+                    resume_char=len(self.tokenizer.decode(tokens[prompt_len:], skip_special_tokens=True)),
                 )
             )
-            logits = rewind_and_inject(self.model, cache, tokens, cut_token, anchor_ids)
             checkpoint = len(tokens)  # a âncora fica "trancada" antes do novo L_0
             paragraphs = [(checkpoint, 0)]
 
         return GenerationResult(
             mode=self.mode.value,
             rewind_scope=self.rewind_scope.value,
+            anchor_style=self.anchor_style.value,
             text=self.tokenizer.decode(tokens[prompt_len:], skip_special_tokens=True),
             prompt_tokens=prompt_len,
             final_cache_len=cache.get_seq_length(),
