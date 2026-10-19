@@ -78,3 +78,27 @@ Uma medida automática por sobreposição de 4-gramas **não** separou os modos 
 2. **A âncora amplifica falsos positivos (p15):** com 11/36 já calculado, o modelo duvidou de uma conta certa ("6 + 5 = 11? that doesn't make sense"). A âncora afirmou *"It was wrong"*, o modelo passou a acreditar em 10 resultados e estourou o limite; o blind_rewind acertou. O corte cego só faz esquecer, a âncora **ensina** o erro.
 3. **Quando o caminho é inevitável, a âncora não basta (p24):** o enunciado obriga a forma `A(1+√B)+…`, então "fazer diferente" não é possível e o modelo refaz a mesma conta.
 4. **Acerto com 4096 tokens (p0) é válido:** o modelo escreveu "**Final Answer** … \boxed{90}" e fechou o `</think>`; o limite acabou no resumo final. Nenhum dos 43 acertos do A e do A2 veio de um `\boxed` no meio do raciocínio sem conclusão.
+
+---
+
+## Validação da v0.2 — pré-registro (19/10/2026, escrito antes de rodar)
+
+**Por que pré-registrar:** a v0.2 foi desenhada olhando os problemas 0–29. Para o resultado valer, o teste tem que ser em problemas novos, com as hipóteses e a análise fixadas **antes** de ver os dados. Nada abaixo será mudado depois de ver o resultado.
+
+**Código congelado:** tag `validacao-v0.2`. Nenhuma mudança no detector, no corte ou na âncora até a análise terminar, inclusive a correção do falso positivo do p15 (fica para a v0.3).
+
+**Configuração:**
+- MATH-500 nível 4, **problemas 30–127** (98 problemas; nenhum foi lido durante o desenho da v0.2).
+- Modos `baseline`, `rewind_kv` e `blind_rewind`, com `--rewind-scope branch --anchor-style voice --max-new-tokens 4096`; semente = índice do problema.
+- `--skip-untriggered`: quando o baseline não detecta nenhuma falha, o resultado é copiado para os outros dois modos (a geração seria idêntica, como mostraram o Experimento A e o `prefixo_ok` do A2).
+- Kaggle, 2 × T4, metade dos problemas em cada GPU (`notebooks/kaggle_validacao_v02.ipynb`).
+
+**Hipóteses** (nos problemas em que o baseline detectou pelo menos 1 falha, os únicos em que os modos podem diferir):
+- **H1 (principal):** `rewind_kv` acerta mais que `blind_rewind`. É a contribuição central: a âncora evita a amnésia.
+- **H2:** `rewind_kv` acerta mais que o `baseline`.
+
+**Teste:** teste do sinal exato, bilateral, nos pares em que só um dos dois modos acertou; significativo se p < 0,05. Nenhum problema é excluído. Se a execução cair, retoma-se de onde parou e todos os 98 entram na análise.
+
+**Secundárias (descritivas, sem teste):** tokens gerados, fração que bate o limite de 4096, número de rewinds, tamanho final do cache.
+
+**Expectativa honesta:** no Experimento A, ~1/3 dos problemas teve detecção; aqui devem ser ~30, com talvez 5 a 10 pares discordantes. Com isso, só um efeito grande (por exemplo, 8 a 1) seria significativo. Um resultado na direção certa mas sem significância será reportado como tal, e não como confirmação.

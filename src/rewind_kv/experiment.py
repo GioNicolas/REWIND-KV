@@ -66,8 +66,18 @@ def main() -> None:
     )
     parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--skip-untriggered",
+        action="store_true",
+        help="se o baseline não detectar nenhuma falha, copia o resultado dele para os outros modos em vez de "
+        "gerar de novo (com a mesma semente a geração seria idêntica)",
+    )
     parser.add_argument("--out", type=Path, default=Path("results"))
     args = parser.parse_args()
+    if args.skip_untriggered:
+        if Mode.BASELINE.value not in args.modes:
+            parser.error("--skip-untriggered precisa do modo baseline")
+        args.modes = [Mode.BASELINE.value] + [m for m in args.modes if m != Mode.BASELINE.value]
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float16 if device == "cuda" else torch.float32
@@ -81,7 +91,8 @@ def main() -> None:
     else:
         selected = list(enumerate(problems))[args.start : args.start + args.n]
     args.out.mkdir(parents=True, exist_ok=True)
-    out_path = args.out / f"{args.dataset}_{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
+    # O índice do 1º problema no nome evita colisão entre processos que começam no mesmo segundo (2 GPUs).
+    out_path = args.out / f"{args.dataset}_{time.strftime('%Y%m%d-%H%M%S')}_p{selected[0][0]}.jsonl"
     print(f"{len(selected)} problemas x {len(args.modes)} modos em {device} -> {out_path}")
 
     records = []
@@ -90,7 +101,15 @@ def main() -> None:
         first = 1 if args.problems else args.start + 1
         total = first - 1 + len(selected)
         for pos, (i, problem) in enumerate(selected, start=first):
+            baseline_record = None
             for mode in args.modes:
+                if args.skip_untriggered and baseline_record is not None and baseline_record["detections"] == 0:
+                    record = {**baseline_record, "mode": mode, "copied_from_baseline": True}
+                    f.write(json.dumps(record, ensure_ascii=False) + "\n")
+                    f.flush()
+                    records.append(record)
+                    print(f"[{pos}/{total}] p{i:<3} {mode:<13} copiado do baseline (nenhuma detecção)")
+                    continue
                 if device == "cuda":
                     torch.cuda.reset_peak_memory_stats()
                 gen = RewindKVGenerator(
@@ -114,7 +133,10 @@ def main() -> None:
                     "final_cache_mb": kv_cache_bytes(model.config, result.final_cache_len, dtype_bytes) / 2**20,
                     "peak_cache_mb": kv_cache_bytes(model.config, result.peak_cache_len, dtype_bytes) / 2**20,
                     "peak_vram_mb": (peak_vram_bytes() or 0) / 2**20,
+                    "copied_from_baseline": False,
                 }
+                if mode == Mode.BASELINE.value:
+                    baseline_record = record
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
                 f.flush()
                 records.append(record)
