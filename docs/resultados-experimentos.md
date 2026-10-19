@@ -102,3 +102,10 @@ Uma medida automática por sobreposição de 4-gramas **não** separou os modos 
 **Secundárias (descritivas, sem teste):** tokens gerados, fração que bate o limite de 4096, número de rewinds, tamanho final do cache.
 
 **Expectativa honesta:** no Experimento A, ~1/3 dos problemas teve detecção; aqui devem ser ~30, com talvez 5 a 10 pares discordantes. Com isso, só um efeito grande (por exemplo, 8 a 1) seria significativo. Um resultado na direção certa mas sem significância será reportado como tal, e não como confirmação.
+
+---
+
+## Candidatos para a v0.3 (anotados durante a validação; não mudam o código congelado)
+
+1. **Falsos positivos amplificados pela âncora (p15 do A2):** uma dúvida sobre uma conta certa vira *"It was wrong"* na âncora, e o modelo passa a acreditar no erro.
+2. **Rewind reversível** (ideia vinda do "zoom" do UniiChat; ver o [Mapa da Literatura](mapa-da-literatura.md), seção 6): guardar o trecho cortado fora da GPU e restaurá-lo se o modelo depois contradisser a âncora. Seria uma resposta direta ao item 1.

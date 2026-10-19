@@ -67,3 +67,18 @@ Levantamento feito depois dos dois pilotos, para decidir os caminhos **A** (cort
 1. Trocar "o primeiro algoritmo que…" por "até onde verificamos…", citando LPSR e Thought Rollback.
 2. **Baselines que um revisor vai pedir:** *Blind Rewind* (já temos), DEER (*early exit*) e, se possível, uma variante estilo Thought Rollback.
 3. Testar a combinação **RewindKV + early exit**: um corta os ramos que falharam, o outro para quando a resposta estabiliza.
+
+## 6. Outra camada: memória de agentes entre mensagens (19/10/2026)
+
+**UniiChat** (Taelin, out/2026, [github.com/VictorTaelin/UniiChat](https://github.com/VictorTaelin/UniiChat)) é um agente de "conversa infinita". Cada mensagem vira uma linha de resumo, escrita por um modelo mais barato; linhas vizinhas são resumidas em pares, formando uma árvore binária, e a visão de até 128 KB mostra o recente em detalhe e o antigo cada vez mais resumido. Nada é apagado: o agente pode dar "zoom" num resumo até a mensagem original. Tudo funciona por texto via API (Claude/OpenAI), aproveitando o cache de prompt do fornecedor. Lido no README e no `Memory.ts`: não há nenhuma checagem de erro ou de raciocínio; um resumo errado que caiba no limite é mantido.
+
+| Eixo | UniiChat | RewindKV |
+|---|---|---|
+| Onde atua | entre mensagens de uma conversa de semanas | dentro de um único raciocínio (`<think>`) |
+| Nível | texto, via API | KV-Cache (pesos abertos) |
+| Critério para tirar do contexto | idade (o antigo fica mais resumido) | correção (o que o modelo declarou errado) |
+| Destino do conteúdo | resumido, recuperável por zoom | apagado da GPU, trocado por uma âncora |
+
+**Não é concorrente:** é da família de memória hierárquica por resumos (como MemGPT/Letta), não da de rollback durante a geração (LPSR, Thought Rollback). As duas camadas são complementares: um agente desses poderia usar o RewindKV dentro de cada resposta.
+
+**Ideia aproveitada (candidata à v0.3): rewind reversível.** O "zoom" do UniiChat torna a compressão reversível. No RewindKV, o corte é irreversível, e um falso positivo vira um erro ensinado pela âncora (p15 do Experimento A2). Guardar o trecho cortado fora da GPU e restaurá-lo se o modelo depois contradisser a âncora tornaria o falso positivo recuperável. Até onde verificamos, nem o LPSR nem o Thought Rollback fazem isso.
