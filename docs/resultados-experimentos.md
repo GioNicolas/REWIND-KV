@@ -46,10 +46,35 @@ Modelo: `DeepSeek-R1-Distill-Qwen-1.5B` (FP16, Colab T4), temperatura 0,6, top-p
 
 Simulando o corte nos textos do Experimento A: no p3, o corte passa de 33 caracteres ("2 × 120 = 240") para 1274, começando em *"Alternatively, if I didn't treat them as a single block…"*.
 
-## Experimento A2 — v0.2, conjunto de desenvolvimento (a rodar)
+## Experimento A2 — v0.2, conjunto de desenvolvimento (19/10/2026)
 
-**Configuração:** os 10 problemas com detecção no baseline do Experimento A (0, 3, 5, 6, 13, 15, 17, 22, 24, 26), modos `rewind_kv` e `blind_rewind` com a v0.2. O baseline é reaproveitado do Experimento A (mesma semente; o notebook confere se a geração foi idêntica até o primeiro corte).
+**Configuração:** os 10 problemas com detecção no baseline do Experimento A (0, 3, 5, 6, 13, 15, 17, 22, 24, 26), modos `rewind_kv` e `blind_rewind` com a v0.2. O baseline é reaproveitado do Experimento A. A geração foi idêntica ao baseline até o primeiro corte em todos os 20 registros (`prefixo_ok`), então a comparação é pareada.
 
-**O que olhar:** (1) se o modelo ainda refaz o trecho cortado; (2) acertos vs baseline e vs v0.1; (3) `rewind_kv` vs `blind_rewind`, para saber se o ganho vem do corte ou da âncora.
+> **Cuidado:** a v0.2 foi desenhada olhando esses 10 problemas. Os resultados abaixo **não valem como evidência**; só justificam validar em problemas novos.
 
-**Cuidado:** a v0.2 foi desenhada olhando esses 10 problemas. Um resultado bom aqui **não vale como evidência**; ele só justifica validar em problemas novos.
+| | Acertos (de 10) | Ganhou do baseline | Perdeu do baseline |
+|---|---|---|---|
+| baseline | 4 | — | — |
+| rewind_kv v0.1 | 5 | p0 | — |
+| **rewind_kv v0.2** | **5** | p0, p6 | p15 |
+| blind_rewind v0.2 | 3 | — | p5 |
+
+rewind_kv vs blind_rewind nos problemas que mudaram: 3 a 1 (p0, p5 e p6 contra p15). Não é significativo (teste do sinal, p ≈ 0,63).
+
+**O fato errado volta depois do corte?** Para 6 problemas, anotei à mão o fato que o modelo declarou errado (`(2,3,-1)` no p0, `240` no p3, `-12.5` no p5, `x = 6` no p6, a equação do p22, `A√B = 0` no p24) e procurei esse fato nos 1500 caracteres seguintes a cada corte que o continha:
+
+| | Fato errado reapareceu |
+|---|---|
+| blind_rewind v0.2 | 9 / 9 cortes |
+| rewind_kv v0.1 (Experimento A) | 6 / 8 |
+| rewind_kv v0.2 | 4 / 8 |
+
+Dos 4 casos da v0.2, só 1 é o modelo **adotando de novo** o erro (p24). Nos outros, ele cita o fato **para rejeitá-lo**: no p5, *"Maybe I thought the term was -12.5, but that was a miscalculation"*; no p3, *"why is the other approach giving me 240? Because … I fixed Pierre's seat"*. Nos casos de blind_rewind que li, o modelo adotava o erro de novo; os 9 não foram todos conferidos à mão.
+
+Uma medida automática por sobreposição de 4-gramas **não** separou os modos (rewind_kv 0,22, blind 0,18). Ela conta como repetição a reescrita de coisas certas que estavam no trecho cortado e não pega repetições parafraseadas; por isso não foi usada.
+
+**Achados:**
+1. **A amnésia existe:** sem âncora, o modelo volta ao mesmo fato errado em todos os cortes. Esta é a primeira evidência, ainda pequena, para a contribuição central (âncora > corte cego).
+2. **A âncora amplifica falsos positivos (p15):** com 11/36 já calculado, o modelo duvidou de uma conta certa ("6 + 5 = 11? that doesn't make sense"). A âncora afirmou *"It was wrong"*, o modelo passou a acreditar em 10 resultados e estourou o limite; o blind_rewind acertou. O corte cego só faz esquecer, a âncora **ensina** o erro.
+3. **Quando o caminho é inevitável, a âncora não basta (p24):** o enunciado obriga a forma `A(1+√B)+…`, então "fazer diferente" não é possível e o modelo refaz a mesma conta.
+4. **Acerto com 4096 tokens (p0) é válido:** o modelo escreveu "**Final Answer** … \boxed{90}" e fechou o `</think>`; o limite acabou no resumo final. Nenhum dos 43 acertos do A e do A2 veio de um `\boxed` no meio do raciocínio sem conclusão.
