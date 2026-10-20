@@ -132,7 +132,7 @@ Rodou no Kaggle (2 × T4, 3h31min), sem erros, nos 98 problemas. A análise abai
 | p116 | blind | a descoberta de `n = 4` (certa) | âncora *"Wait, let me verify that." It was wrong*; o modelo abandonou o teste de valores e foi para logaritmos. O blind refez o teste e achou 4 |
 | p108 | **rewind_kv** | uma conta de inclusão-exclusão errada (64 ≠ 60) | erro de verdade; a âncora funcionou como planejado |
 
-Nos 5 casos em que o blind_rewind venceu, **o corte jogou fora um raciocínio certo** (falso positivo do detector). No único caso em que o rewind_kv venceu, o corte pegou um erro de verdade. Em todo o conjunto com detecção, a resposta-gabarito aparecia no texto cortado em pelo menos 10 dos 43 cortes do rewind_kv. É uma contagem por busca de texto, que subestima os falsos positivos.
+Nos 5 casos em que o blind_rewind venceu, **o corte jogou fora um raciocínio certo** (falso positivo do detector). No único caso em que o rewind_kv venceu, o corte pegou um erro de verdade. O rewind_kv fez 52 cortes nos 32 problemas com detecção; nos 22 problemas com gabarito numérico ou fração simples (43 cortes), a resposta-gabarito aparecia no texto cortado em pelo menos 10. É uma contagem por busca de texto, que subestima os falsos positivos.
 
 **Achados:**
 1. **A âncora é uma amplificadora: ela piora os falsos positivos e só ajuda nos verdadeiros.** Depois de um corte errado, o blind_rewind só esquece, e o modelo muitas vezes **redescobre** a resposta certa (p30, p36, p80, p116). A âncora afirma *"It was wrong … I will not repeat it"* e **proíbe** essa redescoberta. É o achado 2 do A2 (p15), agora como padrão: 5 de 5 derrotas.
