@@ -1,6 +1,13 @@
 import pytest
 
-from rewind_kv.detector import clean_reason, detect_failure, first_sentence, informative_sentence, opens_branch
+from rewind_kv.detector import (
+    clean_reason,
+    detect_failure,
+    first_sentence,
+    informative_sentence,
+    opens_branch,
+    strict_skip_reason,
+)
 
 
 @pytest.mark.parametrize(
@@ -136,6 +143,48 @@ def test_opens_branch(paragraph):
 )
 def test_does_not_open_branch(paragraph):
     assert not opens_branch(paragraph)
+
+
+# Falsos alarmes reais da validação da v0.2 (docs/dados/rotulos-cortes-validacao-v02.json).
+@pytest.mark.parametrize(
+    "text, why",
+    [
+        ("Is there any chance I made a mistake in the counting? ", "pergunta"),
+        ("Wait a second, that's 2107? But earlier I got 2037. Did I make a mistake in adding? ", "pergunta"),
+        ("But hold on, let me just think about this again because sometimes when you have overlapping "
+         "regions or constraints, it's easy to make a mistake.\n", "aviso"),
+        ("Wait, but before I conclude, let me think if there's any chance that I made a mistake in the expansion.\n",
+         "aviso"),
+        ("3 mod 23 is 3, which is not 1. So, t=1 doesn't work.\n", "eliminacao"),
+        ("Let me recalculate D with another point.\n", "acao"),
+    ],
+)
+def test_strict_skips_false_alarms(text, why):
+    assert detect_failure(text) is not None
+    assert detect_failure(text, strict=True) is None
+    signal = detect_failure(text)
+    assert strict_skip_reason(signal.reason, signal.marker) == why
+
+
+# Erros reais da validação: o modo estrito tem que continuar disparando.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "So, 7*211=1477. Wait, that can't be right because 1477 is way more than 2037. ",
+        "Is 198 a palindrome? 198 reversed is 891, so no.\n\nWait, so that's incorrect. ",
+        "64, which is not 60. So, that doesn't work.\n",
+        "Hmm, but that contradicts our previous result. ",
+        "Divide both sides by -4: x^2 = -2. Wait, that can't be right because x^2 can't be negative. ",
+    ],
+)
+def test_strict_keeps_real_errors(text):
+    assert detect_failure(text, strict=True) is not None
+
+
+def test_inconsistency_rule_is_opt_in():
+    reason = "Hmm, but that contradicts our previous result."
+    assert strict_skip_reason(reason, "contradicts") is None
+    assert strict_skip_reason(reason, "contradicts", skip_inconsistency=True) == "contradicao"
 
 
 def test_informative_sentence_skips_fillers_and_numbers():

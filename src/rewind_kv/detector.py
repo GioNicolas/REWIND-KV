@@ -45,6 +45,51 @@ _VERIFICATION_RE = re.compile(
 _HEDGE_RE = re.compile(r"\b(?:maybe|perhaps|might|possibly|probably)\b", re.IGNORECASE)
 
 _MARKER_RE = re.compile("|".join(f"(?:{m})" for m in FAILURE_MARKERS), re.IGNORECASE)
+
+# Modo estrito (v0.3): na validação da v0.2, 4 em cada 10 cortes jogaram fora algo certo
+# (docs/resultados-experimentos.md). Estas regras descartam os tipos de frase que causaram isso.
+_QUESTION_START_RE = re.compile(
+    r"^(?:(?:wait|hmm+|oh|but|okay|ok|so|actually|hold on)\b[\s,.!]*)*"
+    r"(?:is|are|was|were|did|do|does|could|can|have|has|am)\b",
+    re.IGNORECASE,
+)
+# Avisos genéricos: "sometimes ... it's easy to make a mistake", "before I conclude, ... any chance".
+_GENERIC_RE = re.compile(r"\b(?:sometimes|easy to|any chance|be careful|before I conclude)\b", re.IGNORECASE)
+# Eliminar um candidato não é errar: "So, t=1 doesn't work."
+_ELIMINATION_RE = re.compile(
+    rf"\b[A-Za-z]\s*=\s*-?\d+(?:\.\d+)?\s*,?\s*(?:doesn{_APOS}?t|does not|didn{_APOS}?t|did not) work",
+    re.IGNORECASE,
+)
+# Uma ação, não uma declaração de erro.
+_ACTION_MARKER_RE = re.compile(r"let me recalculate", re.IGNORECASE)
+# Contradição entre dois resultados: a frase não diz qual lado está errado, e o corte
+# sempre levaria o mais recente ("2107, but earlier I got 2037... I made a mistake somewhere").
+# Desligada por padrão: nos cortes rotulados, pulava 11 erros reais para evitar 5 cortes do
+# lado errado. As palavras não separam os dois casos; isso pede outro sinal.
+_INCONSISTENCY_RE = re.compile(
+    r"\b(?:earlier|previous(?:ly)?|before|other (?:approach|method|result|way)|(?:first|second) (?:approach|method|calculation)"
+    rf"|one of the|somewhere|which one|I got|I{_APOS}?m getting|I am getting|I had)\b",
+    re.IGNORECASE,
+)
+
+
+def strict_skip_reason(sentence: str, marker: str, skip_inconsistency: bool = False) -> str | None:
+    """Por que o modo estrito NÃO dispararia nesta frase (ou None, se dispararia).
+
+    Categorias: "pergunta", "aviso", "eliminacao", "acao", "contradicao".
+    """
+    s = sentence.strip()
+    if s.endswith("?") or _QUESTION_START_RE.match(s):
+        return "pergunta"
+    if _GENERIC_RE.search(s):
+        return "aviso"
+    if _ELIMINATION_RE.search(s):
+        return "eliminacao"
+    if _ACTION_MARKER_RE.fullmatch(marker.strip()):
+        return "acao"
+    if skip_inconsistency and _INCONSISTENCY_RE.search(s):
+        return "contradicao"
+    return None
 # Ponto seguido de espaço, para não confundir com decimais ("3.5").
 _SENTENCE_END_RE = re.compile(r"[.!?](?=\s)|\n")
 _SENTENCE_START_RE = re.compile(r"[.!?]\s|\n")
@@ -75,11 +120,12 @@ class FailureSignal:
     end: int  # offset (em caracteres) logo após o fim da frase
 
 
-def detect_failure(text: str) -> FailureSignal | None:
+def detect_failure(text: str, strict: bool = False) -> FailureSignal | None:
     """Retorna o primeiro sinal de falha completo em `text`, ou None.
 
     Retorna None também quando há marcador mas a frase ainda não terminou:
-    o chamador deve tentar de novo no próximo token.
+    o chamador deve tentar de novo no próximo token. Com `strict`, também
+    pula as frases que `strict_skip_reason` descarta.
     """
     for m in _MARKER_RE.finditer(text):
         end_m = _SENTENCE_END_RE.search(text, m.end())
@@ -95,6 +141,8 @@ def detect_failure(text: str) -> FailureSignal | None:
             start = s.end()
         sentence = text[start:end]
         if _VERIFICATION_RE.search(sentence) or _HEDGE_RE.search(text, start, m.start()):
+            continue
+        if strict and strict_skip_reason(sentence, m.group(0)):
             continue
         return FailureSignal(marker=m.group(0), reason=sentence.strip(), start=start, end=end)
     return None

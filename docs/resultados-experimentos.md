@@ -159,6 +159,33 @@ Para medir o tamanho do achado 2, cada um dos **73 cortes únicos** da validaç�
 
 **Limites:** os rótulos são do assistente; o autor conferiu os 16 de confiança baixa ou média e concordou com todos, numa leitura rápida (~2 min), que não substitui uma rotulagem independente. A análise foi feita depois de ver os dados e não estava no pré-registro. Os 57 de confiança alta não foram conferidos por uma segunda pessoa.
 
+### Detector estrito: primeira avaliação, sem GPU (20/10/2026)
+
+Regras novas (`detect_failure(..., strict=True)`, em `detector.py`). Cada uma descarta um tipo de frase que, na rotulagem, não era declaração de erro:
+
+| Regra | Exemplo descartado |
+|---|---|
+| **pergunta** | *"Is there any chance I made a mistake in the counting?"* |
+| **aviso genérico** | *"sometimes … it's easy to make a mistake"*, *"before I conclude … any chance"* |
+| **eliminação de candidato** | *"So, t=1 doesn't work."* |
+| **ação, não declaração** | *"Let me recalculate D with another point."* |
+
+Avaliação nos cortes rotulados (`python -m rewind_kv.detector_eval docs/dados/rotulos-cortes-validacao-v02.json`):
+
+| | Cortes mantidos | Erros reais mantidos | Precisão |
+|---|---|---|---|
+| v0.2 | 73 | 44 de 44 | 60% |
+| **Estrito** | 63 | **44 de 44** | **70%** |
+| Estrito + regra de contradição | 47 | 33 de 44 | 70% |
+| (só o 1º corte) v0.2 → estrito | 31 → 25 | 16 → 16 | 52% → 64% |
+
+**Leitura:**
+1. **As 4 regras tiram 8 falsos alarmes e 2 cortes do lado errado sem perder nenhum erro real.**
+2. **A regra de contradição não funciona** e ficou desligada: ela pulava as frases que comparam dois resultados ("earlier", "somewhere", "I got"…), e isso tirava 11 erros reais para evitar 5 cortes do lado errado. As palavras são as mesmas nos dois casos; confirma que o "lado errado" pede outro sinal.
+3. **Sobram 7 falsos alarmes e 8 cortes do lado errado** que nenhuma regra de palavras separa. Os falsos que sobram são dúvidas sobre afirmações certas (*"Wait, actually, no, that's not correct"* sobre as 8 retas certas do p35).
+
+**Limites:** as regras foram escritas olhando esses mesmos 73 cortes, então os 70% são otimistas (é o erro medido nos dados de treino). É uma aproximação: se o detector pula uma frase, o texto seguinte mudaria, e os cortes seguintes também. O número que vale é o de um conjunto novo.
+
 **Consequência:** a tese "a âncora evita a amnésia" (A2, achado 1) continua de pé no mecanismo, mas só vale quando a falha detectada é real. A pergunta de pesquisa passa a ser **a precisão do gatilho**: com o detector léxico atual, a âncora faz mais mal que bem. O argumento de acurácia sai do pitch até haver uma versão que vença em problemas novos.
 
 ---
