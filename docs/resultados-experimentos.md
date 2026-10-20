@@ -103,9 +103,49 @@ Uma medida automática por sobreposição de 4-gramas **não** separou os modos 
 
 **Expectativa honesta:** no Experimento A, ~1/3 dos problemas teve detecção; aqui devem ser ~30, com talvez 5 a 10 pares discordantes. Com isso, só um efeito grande (por exemplo, 8 a 1) seria significativo. Um resultado na direção certa mas sem significância será reportado como tal, e não como confirmação.
 
+## Validação da v0.2 — resultado (19/10/2026)
+
+Rodou no Kaggle (2 × T4, 3h31min), sem erros, nos 98 problemas. A análise abaixo é exatamente a pré-registrada, recalculada localmente a partir dos `.jsonl` (bate com a saída do notebook). A geração foi idêntica ao baseline até o primeiro corte em todos os registros.
+
+| | Acurácia (98 problemas) | Acurácia (32 com detecção) | Bateu no limite de 4096 (32 com detecção) |
+|---|---|---|---|
+| baseline | 61,2% | 31,2% | 72% |
+| blind_rewind | 62,2% | 34,4% | 62% |
+| **rewind_kv** | **58,2%** | **21,9%** | **75%** |
+
+| Hipótese | Vitórias | Derrotas | p (sinal, bilateral) | Resultado |
+|---|---|---|---|---|
+| **H1:** rewind_kv > blind_rewind | 1 | 5 | 0,22 | **Não confirmada.** A direção é a **oposta** à prevista. |
+| **H2:** rewind_kv > baseline | 1 | 4 | 0,38 | **Não confirmada.** Direção oposta. |
+| (extra, não pré-registrada) blind_rewind vs baseline | 2 | 1 | 1,0 | sem diferença |
+
+**Leitura:** a v0.2 **não** generalizou. Nos problemas novos, a âncora não ajudou e, na direção, atrapalhou. O 3 a 1 do A2 não se repetiu: era ajuste ao conjunto de desenvolvimento, como o pré-registro previa que poderia ser.
+
+**Por que a âncora perdeu** (análise exploratória, feita depois de ver os dados). Li os 6 problemas discordantes do H1:
+
+| Problema | Vencedor | O que foi cortado | O que a âncora fez |
+|---|---|---|---|
+| p30 | blind | no 3º corte, a conta certa (`f(3) = 8`); a frase do "erro" culpava a **outra** abordagem | *"It was wrong"* sobre o caminho certo; o modelo ficou alternando entre 8 e −4 até o limite |
+| p36 | blind | a integral que confirmava a resposta certa (1/4); gatilho: *"let me just think about this again because sometimes … it's easy to make a mistake"* | o modelo passou a duvidar da área e estourou o limite |
+| p62 | blind | o cálculo certo (`−I`) | âncora *"It was wrong: that contradicts"*; o modelo refez e não fechou |
+| p80 | blind | `9 × 7 = 63` (certo); gatilho: a **pergunta** *"Is there any chance I made a mistake in the counting?"* | *"It was wrong"* sobre 63; o modelo foi atrás de outras contagens (35) e estourou o limite |
+| p116 | blind | a descoberta de `n = 4` (certa) | âncora *"Wait, let me verify that." It was wrong*; o modelo abandonou o teste de valores e foi para logaritmos. O blind refez o teste e achou 4 |
+| p108 | **rewind_kv** | uma conta de inclusão-exclusão errada (64 ≠ 60) | erro de verdade; a âncora funcionou como planejado |
+
+Nos 5 casos em que o blind_rewind venceu, **o corte jogou fora um raciocínio certo** (falso positivo do detector). No único caso em que o rewind_kv venceu, o corte pegou um erro de verdade. Em todo o conjunto com detecção, a resposta-gabarito aparecia no texto cortado em pelo menos 10 dos 43 cortes do rewind_kv. É uma contagem por busca de texto, que subestima os falsos positivos.
+
+**Achados:**
+1. **A âncora é uma amplificadora: ela piora os falsos positivos e só ajuda nos verdadeiros.** Depois de um corte errado, o blind_rewind só esquece, e o modelo muitas vezes **redescobre** a resposta certa (p30, p36, p80, p116). A âncora afirma *"It was wrong … I will not repeat it"* e **proíbe** essa redescoberta. É o achado 2 do A2 (p15), agora como padrão: 5 de 5 derrotas.
+2. **O detector léxico tem precisão baixa nos problemas novos.** Os gatilhos dos falsos positivos são dúvidas e verificações, não declarações de erro: perguntas (*"Is there any chance I made a mistake?"*), avisos genéricos (*"sometimes … it's easy to make a mistake"*) e contradições entre duas abordagens em que a cortada era a certa (achado 5 do Experimento A).
+3. **O teto continua sendo o limite de tokens.** 72% dos problemas com detecção batem no limite no baseline; dos erros com detecção, só 1 (p65) é uma resposta errada terminada, e foi igual nos 3 modos.
+4. **O corte cego (blind_rewind) é neutro** (2 a 1 contra o baseline). Cortar sozinho não ajuda nem atrapalha; o efeito, para o bem e para o mal, vem da âncora.
+
+**Consequência:** a tese "a âncora evita a amnésia" (A2, achado 1) continua de pé no mecanismo, mas só vale quando a falha detectada é real. A pergunta de pesquisa passa a ser **a precisão do gatilho**: com o detector léxico atual, a âncora faz mais mal que bem. O argumento de acurácia sai do pitch até haver uma versão que vença em problemas novos.
+
 ---
 
 ## Candidatos para a v0.3 (anotados durante a validação; não mudam o código congelado)
 
 1. **Falsos positivos amplificados pela âncora (p15 do A2):** uma dúvida sobre uma conta certa vira *"It was wrong"* na âncora, e o modelo passa a acreditar no erro.
 2. **Rewind reversível** (ideia vinda do "zoom" do UniiChat; ver o [Mapa da Literatura](mapa-da-literatura.md), seção 6): guardar o trecho cortado fora da GPU e restaurá-lo se o modelo depois contradisser a âncora. Seria uma resposta direta ao item 1.
+3. **Depois da validação:** o item 1 virou o problema principal (5 de 5 derrotas do H1). Qualquer v0.3 precisa ser desenhada e testada nos problemas 0–127 já vistos como **desenvolvimento**, e validada em problemas novos (outro nível do MATH-500 ou outro benchmark), nunca nos mesmos 30–127.
