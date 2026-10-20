@@ -1,0 +1,1387 @@
+{
+ "description": "Rótulos dos 73 cortes únicos da validação da v0.2 (MATH-500 nível 4, problemas 30-127). Rotulados pelo assistente; os 16 de confiança baixa/média foram conferidos pelo autor (16/16 de acordo). Um corte é identificado por (problem_idx, checkpoint, generated_at) nos .jsonl da validação.",
+ "labels": {
+  "real": "erro real",
+  "real_colateral": "erro real, mas o corte levou algo certo",
+  "lado_errado": "contradição real, mas o lado cortado era o certo",
+  "falso": "falso alarme"
+ },
+ "cuts": [
+  {
+   "id": "c01",
+   "problem_idx": 30,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1735,
+   "generated_at": 1869,
+   "discarded_tokens": 190,
+   "reason": "Wait, I must have made a mistake in one of the approaches.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "O corte leva a conta errada f(3) = -4 (erro de sinal); o 8 da 1ª abordagem fica no contexto.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c02",
+   "problem_idx": 30,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 3032,
+   "generated_at": 3621,
+   "discarded_tokens": 511,
+   "reason": "Wait, so I think I made a mistake in my second approach by miscalculating the sign.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "O erro (sinal) foi na abordagem anterior; o corte leva a CORREÇÃO e a conclusão certa (f(3) = 8).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c03",
+   "problem_idx": 30,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 2
+   },
+   "checkpoint": 3087,
+   "generated_at": 3759,
+   "discarded_tokens": 138,
+   "reason": "Therefore, I must have made a mistake in the second approach.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "O corte leva o sistema de equações que dá 8 (certo); a frase culpa a outra abordagem.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c04",
+   "problem_idx": 32,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 304,
+   "generated_at": 334,
+   "discarded_tokens": 71,
+   "reason": "Wait, that can't be right...",
+   "label": "real",
+   "confidence": "alta",
+   "note": "'54 dividido por 54 é 1' não faz sentido no problema; confusão real.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c05",
+   "problem_idx": 33,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1258,
+   "generated_at": 1208,
+   "discarded_tokens": 51,
+   "reason": "Wait, that doesn't make sense.",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "Contagem de bolas confusa (7, depois 8); a confusão é real, mas pequena.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c06",
+   "problem_idx": 33,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 1295,
+   "generated_at": 1376,
+   "discarded_tokens": 131,
+   "reason": "But that can't be right because the problem is asking for a non-trivial probability.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Concluiu probabilidade zero; o gabarito é 1/3.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c07",
+   "problem_idx": 35,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1951,
+   "generated_at": 2014,
+   "discarded_tokens": 170,
+   "reason": "Wait, actually, no, that's not correct.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Tinha 8 retas e 2/21 (certo); duvidou sem motivo ('actually, no, that's not correct').",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c08",
+   "problem_idx": 35,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 3276,
+   "generated_at": 3642,
+   "discarded_tokens": 359,
+   "reason": "Wait, no, that's not correct.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "O corte leva 2/21 (certo); o 'not correct' rejeitava uma 'fonte' inventada.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c09",
+   "problem_idx": 35,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 2794,
+   "generated_at": 3871,
+   "discarded_tokens": 1014,
+   "reason": "But actually, no, that's not correct because in a 3x3 grid, there are more lines.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Duvidou das 8 retas (certo) dizendo que há mais retas.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c10",
+   "problem_idx": 36,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 996,
+   "generated_at": 1146,
+   "discarded_tokens": 224,
+   "reason": "But hold on, let me just think about this again because sometimes when you have overlapping regions or constraints, it's easy to make a mistake.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Aviso genérico ('it's easy to make a mistake') logo depois de confirmar 1/4 (certo).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c11",
+   "problem_idx": 36,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 3143,
+   "generated_at": 3447,
+   "discarded_tokens": 221,
+   "reason": "Wait, no, that's not correct, because for x from0 to4, y is from0 to4 -x, which is the triangle.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Descrição errada da região (quadrilátero/triângulo); o modelo corrige a si mesmo.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c12",
+   "problem_idx": 36,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 2
+   },
+   "checkpoint": 3215,
+   "generated_at": 3848,
+   "discarded_tokens": 401,
+   "reason": "Wait, that doesn't make sense.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Polígono sem sentido (vértices repetidos).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c13",
+   "problem_idx": 37,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 945,
+   "generated_at": 1403,
+   "discarded_tokens": 501,
+   "reason": "Hmm, so I must have made a mistake somewhere.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "A soma manual dá 2107 (certo) contra 2037 (errado, de antes); o corte leva o 2107.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c14",
+   "problem_idx": 37,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 1241,
+   "generated_at": 2101,
+   "discarded_tokens": 448,
+   "reason": "That must mean I made a mistake somewhere.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "Mesmo conflito 2107 x 2037; o corte leva o 2107 certo.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c15",
+   "problem_idx": 37,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 2
+   },
+   "checkpoint": 1301,
+   "generated_at": 2351,
+   "discarded_tokens": 250,
+   "reason": "Let me recalculate.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "Mesmo conflito; o corte leva a fórmula que dá 2107.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c16",
+   "problem_idx": 37,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 2077,
+   "generated_at": 2656,
+   "discarded_tokens": 121,
+   "reason": "Wait, that can't be right because 1477 is way more than 2037.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Pareamento sem sentido (15 + 196) dando 1477.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c17",
+   "problem_idx": 37,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 2
+   },
+   "checkpoint": 2077,
+   "generated_at": 2816,
+   "discarded_tokens": 160,
+   "reason": "Wait, that can't be right.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "15 + ... + 28 = 301 está certo; o conflito é com o 291 errado de antes.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c18",
+   "problem_idx": 37,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 3
+   },
+   "checkpoint": 2077,
+   "generated_at": 3139,
+   "discarded_tokens": 323,
+   "reason": "Did I make a mistake in adding?",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "Soma termo a termo dá 2107 (certo); gatilho é uma pergunta ('Did I make a mistake?').",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c19",
+   "problem_idx": 37,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 4
+   },
+   "checkpoint": 2077,
+   "generated_at": 3287,
+   "discarded_tokens": 148,
+   "reason": "Wait, that can't be right because 14 terms should add up to 291, but here I'm getting 301.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "7 x 43 = 301 está certo; o errado é o 291 de antes.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c20",
+   "problem_idx": 40,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1363,
+   "generated_at": 1644,
+   "discarded_tokens": 403,
+   "reason": "Let me recalculate D with another point.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Verificação de rotina ('perhaps I made a miscalculation'); a equação 5x - 7y + 11z + 4 = 0 estava certa.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c21",
+   "problem_idx": 46,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 876,
+   "generated_at": 747,
+   "discarded_tokens": 94,
+   "reason": "That doesn't make sense because 0x2 is just a line.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Leu a região sombreada como 'retângulo 0 x 2'; era um triângulo.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c22",
+   "problem_idx": 46,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 1198,
+   "generated_at": 1042,
+   "discarded_tokens": 37,
+   "reason": "That can't be right.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Áreas 8 + 12 = 20 > 12: leitura errada das regiões.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c23",
+   "problem_idx": 46,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 2
+   },
+   "checkpoint": 1287,
+   "generated_at": 1140,
+   "discarded_tokens": 66,
+   "reason": "That can't be right because the shaded regions should be entirely within the rectangle.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Mesma leitura errada (dois retângulos).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c24",
+   "problem_idx": 46,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 1385,
+   "generated_at": 1339,
+   "discarded_tokens": 83,
+   "reason": "That doesn't make sense.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Área sombreada 16 > 12: leitura errada.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c25",
+   "problem_idx": 46,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 3
+   },
+   "checkpoint": 1354,
+   "generated_at": 1812,
+   "discarded_tokens": 672,
+   "reason": "That can't be right.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Mesma leitura errada, agora com sobreposição.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c26",
+   "problem_idx": 46,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 4
+   },
+   "checkpoint": 1411,
+   "generated_at": 2204,
+   "discarded_tokens": 392,
+   "reason": "So, that can't be right.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Mesma leitura errada (8 + 12).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c27",
+   "problem_idx": 49,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1130,
+   "generated_at": 1171,
+   "discarded_tokens": 114,
+   "reason": "Hmm, I must have made a mistake somewhere.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Inverteu a taxa: 56 Drinkets = 32 Blinkets (errado; certo é 24).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c28",
+   "problem_idx": 49,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 1130,
+   "generated_at": 1284,
+   "discarded_tokens": 113,
+   "reason": "Wait, that contradicts my earlier answer.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Mesma inversão (32 Blinkets, 8 Trinkets).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c29",
+   "problem_idx": 49,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 2
+   },
+   "checkpoint": 1130,
+   "generated_at": 1482,
+   "discarded_tokens": 198,
+   "reason": "But wait, that can't be right because earlier I got 6.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "B = (3/7)D está invertido.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c30",
+   "problem_idx": 49,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 3
+   },
+   "checkpoint": 1130,
+   "generated_at": 1564,
+   "discarded_tokens": 82,
+   "reason": "Wait, no, that's not right.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "(4/3)(7/3) está errado, e o modelo percebe.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c31",
+   "problem_idx": 49,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 4
+   },
+   "checkpoint": 1130,
+   "generated_at": 1653,
+   "discarded_tokens": 89,
+   "reason": "Hmm, that doesn't make sense.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Mesma inversão (32 / 8).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c32",
+   "problem_idx": 50,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 2434,
+   "generated_at": 2568,
+   "discarded_tokens": 173,
+   "reason": "Wait, that doesn't make sense.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Conta confusa (x 2/9) quando 11111111100 / 450 = 24691358 exato.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c33",
+   "problem_idx": 50,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 3692,
+   "generated_at": 3934,
+   "discarded_tokens": 108,
+   "reason": "Wait, no, that doesn't make sense.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Aritmética sem sentido (110.000.000 - 110.000.000).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c34",
+   "problem_idx": 53,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 2918,
+   "generated_at": 3347,
+   "discarded_tokens": 512,
+   "reason": "But that contradicts the numerical calculation, which is positive.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "O corte leva o cálculo numérico CERTO (~0,035 = 9/256); o errado é a fórmula negativa, que fica.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c35",
+   "problem_idx": 54,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1980,
+   "generated_at": 1885,
+   "discarded_tokens": 41,
+   "reason": "Wait, but before I conclude, let me think if there's any chance that I made a mistake in the expansion or the scaling.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Aviso genérico logo depois de chegar em 288π (certo).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c36",
+   "problem_idx": 60,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 2999,
+   "generated_at": 3282,
+   "discarded_tokens": 529,
+   "reason": "But in triangle QRT, angle at R is 128°, which would make the other two angles sum to 52°, so 2x + 2x = 4x = 52°, so x = 13°, which contradicts the earlier result.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Ângulos contraditórios (x = 13, 26, 60); nenhum leva ao gabarito.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c37",
+   "problem_idx": 62,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 2496,
+   "generated_at": 3013,
+   "discarded_tokens": 607,
+   "reason": "Wait, that contradicts.",
+   "label": "real_colateral",
+   "confidence": "media",
+   "note": "O novo A^40 = A está errado (perdeu o sinal), mas o corte também leva a dedução certa de -I.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c38",
+   "problem_idx": 63,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 461,
+   "generated_at": 442,
+   "discarded_tokens": 42,
+   "reason": "So, t=1 doesn't work.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "'t = 1 doesn't work' é eliminar um candidato, não um erro.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c39",
+   "problem_idx": 63,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 461,
+   "generated_at": 484,
+   "discarded_tokens": 42,
+   "reason": "So, t=1 doesn't work.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Mesmo caso (t = 1); o blind_rewind cortou a mesma frase 3 vezes.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c40",
+   "problem_idx": 63,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 2
+   },
+   "checkpoint": 461,
+   "generated_at": 526,
+   "discarded_tokens": 42,
+   "reason": "So, t=1 doesn't work.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Mesmo caso (t = 1).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c41",
+   "problem_idx": 64,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1645,
+   "generated_at": 1634,
+   "discarded_tokens": 78,
+   "reason": "That contradicts the formula.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Fórmula da inclinação -a/b dá -1/3; o certo é -3.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c42",
+   "problem_idx": 64,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 1645,
+   "generated_at": 1713,
+   "discarded_tokens": 79,
+   "reason": "So, I must have made a mistake in my first calculation.",
+   "label": "real",
+   "confidence": "media",
+   "note": "O corte leva o -1/3 errado (a frase culpa a 1ª conta, que estava certa).",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c43",
+   "problem_idx": 64,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 2
+   },
+   "checkpoint": 1852,
+   "generated_at": 1974,
+   "discarded_tokens": 54,
+   "reason": "But that contradicts the slope I just found.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "-1/3 errado de novo.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c44",
+   "problem_idx": 64,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 3
+   },
+   "checkpoint": 1852,
+   "generated_at": 2129,
+   "discarded_tokens": 155,
+   "reason": "But that contradicts the earlier test.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "-1/3 errado de novo.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c45",
+   "problem_idx": 64,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 2236,
+   "generated_at": 2324,
+   "discarded_tokens": 155,
+   "reason": "So, that can't be right.",
+   "label": "real",
+   "confidence": "media",
+   "note": "A fórmula -a/b é mesmo errada; o corte leva o contraexemplo que a refuta.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c46",
+   "problem_idx": 65,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 988,
+   "generated_at": 1057,
+   "discarded_tokens": 113,
+   "reason": "Let me also remember that sometimes when converting units, it's easy to make a mistake with exponents.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Aviso genérico sobre unidades; 864 estava certo.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c47",
+   "problem_idx": 69,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 3640,
+   "generated_at": 3834,
+   "discarded_tokens": 289,
+   "reason": "But that's incorrect because the correct way is to set it up as lire / exchange rate.",
+   "label": "lado_errado",
+   "confidence": "alta",
+   "note": "O erro (800.000.000) foi antes; o corte leva a correção com 1250 (certo).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c48",
+   "problem_idx": 77,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 2840,
+   "generated_at": 3210,
+   "discarded_tokens": 448,
+   "reason": "Wait, so that's incorrect.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "'198 é palíndromo' é falso, e o modelo percebe.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c49",
+   "problem_idx": 80,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1337,
+   "generated_at": 1347,
+   "discarded_tokens": 71,
+   "reason": "Is there any chance I made a mistake in the counting?",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "Uma pergunta ('Is there any chance I made a mistake?') logo depois de 63 (certo).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c50",
+   "problem_idx": 80,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 1906,
+   "generated_at": 2021,
+   "discarded_tokens": 168,
+   "reason": "Hmm, but that contradicts our previous result.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "(x - 2)(y - 2) = 35 está errado.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c51",
+   "problem_idx": 80,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 2
+   },
+   "checkpoint": 2287,
+   "generated_at": 2928,
+   "discarded_tokens": 584,
+   "reason": "Wait, no, that's not correct.",
+   "label": "real_colateral",
+   "confidence": "media",
+   "note": "A fórmula (largura - 2) está confusa, mas o corte também leva '63 is the correct number'.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c52",
+   "problem_idx": 82,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 347,
+   "generated_at": 348,
+   "discarded_tokens": 111,
+   "reason": "No, that doesn't make sense.",
+   "label": "falso",
+   "confidence": "baixa",
+   "note": "37037 não é divisível por 3, e o modelo já tinha visto; nada errado de fato.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c53",
+   "problem_idx": 82,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 3924,
+   "generated_at": 3928,
+   "discarded_tokens": 51,
+   "reason": "Wait, so that contradicts my earlier thought that it's 6 digits.",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "'Período 3' parece errado (31/111111 tem período 6); não conferi o enunciado.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c54",
+   "problem_idx": 82,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 2
+   },
+   "checkpoint": 3988,
+   "generated_at": 4041,
+   "discarded_tokens": 113,
+   "reason": "But wait, that contradicts my earlier conclusion where I thought the length was 6.",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "Mesmo caso do período 3.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c55",
+   "problem_idx": 84,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 3242,
+   "generated_at": 3335,
+   "discarded_tokens": 188,
+   "reason": "So, after adding 123,456,789, I think I made a mistake there because 12345678 is an 8-digit number, so 12,345,678.",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "Confusão na escrita dos números (12.345.678 x 123.456.789).",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c56",
+   "problem_idx": 86,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 727,
+   "generated_at": 465,
+   "discarded_tokens": 32,
+   "reason": "Wait, that doesn't make sense.",
+   "label": "falso",
+   "confidence": "baixa",
+   "note": "Só estava lendo o código do desenho; não havia afirmação errada.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c57",
+   "problem_idx": 86,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 786,
+   "generated_at": 904,
+   "discarded_tokens": 419,
+   "reason": "Hmm, that doesn't make sense.",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "Hipótese de regiões que 'se cancelam'; errada, mas vaga.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c58",
+   "problem_idx": 88,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 407,
+   "generated_at": 955,
+   "discarded_tokens": 615,
+   "reason": "But that can't be right because when t is large, f(t) is approaching 1, but we might have a minimum somewhere in between.",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "f(t) tendendo a 1 contradiz o mínimo 2; há erro na dedução, não localizei onde.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c59",
+   "problem_idx": 93,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1116,
+   "generated_at": 1098,
+   "discarded_tokens": 39,
+   "reason": "Wait, no, that doesn't make sense either.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "(8 - 1)!! / 4 não faz sentido aqui.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c60",
+   "problem_idx": 93,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 1
+   },
+   "checkpoint": 1258,
+   "generated_at": 1435,
+   "discarded_tokens": 245,
+   "reason": "That can't be right.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "3!/8 = 0,75 arranjos: errado.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c61",
+   "problem_idx": 93,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 2
+   },
+   "checkpoint": 1904,
+   "generated_at": 2291,
+   "discarded_tokens": 267,
+   "reason": "Wait, that can't be right because that would make the count of fixed arrangements for 90° rotations zero, which would lower the average.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "'Nenhum arranjo fica fixo numa rotação de 90°' está CERTO; o modelo duvidou.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c62",
+   "problem_idx": 93,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 3
+   },
+   "checkpoint": 1965,
+   "generated_at": 2524,
+   "discarded_tokens": 233,
+   "reason": "So that can't be right.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "105 / 8 não é inteiro: abordagem errada.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c63",
+   "problem_idx": 93,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 3126,
+   "generated_at": 3569,
+   "discarded_tokens": 461,
+   "reason": "But wait, that can't be right because 420 is the number of ways to assign people to sides, but we also need to consider that the two pairs on sides 1 and 3 are fixed as a whole, but can be arranged in 2!",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "Contagem de reflexões confusa (420).",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c64",
+   "problem_idx": 93,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 2
+   },
+   "checkpoint": 3126,
+   "generated_at": 3699,
+   "discarded_tokens": 130,
+   "reason": "Wait, that doesn't make sense.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "'Dividir 8 pessoas em dois pares = 35 ou 420': errado.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c65",
+   "problem_idx": 93,
+   "modes": [
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "rewind_kv": 4
+   },
+   "checkpoint": 3049,
+   "generated_at": 3741,
+   "discarded_tokens": 190,
+   "reason": "Wait, but that can't be right either, because if you have a 90° rotation, the arrangement could be fixed if the permutation is compatible with the rotation.",
+   "label": "falso",
+   "confidence": "alta",
+   "note": "De novo, 'nenhum arranjo fixo em 90°' está certo e foi duvidado.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c66",
+   "problem_idx": 94,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1475,
+   "generated_at": 1961,
+   "discarded_tokens": 705,
+   "reason": "Wait, that can't be right.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Chegou em θ = 0: hipótese inconsistente.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c67",
+   "problem_idx": 106,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1864,
+   "generated_at": 2745,
+   "discarded_tokens": 1019,
+   "reason": "Wait, hold on, that doesn't make sense.",
+   "label": "real_colateral",
+   "confidence": "media",
+   "note": "Misturou unidades (Ian 158,85 pula), mas o corte de 1019 tokens leva a conclusão certa (Navin).",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c68",
+   "problem_idx": 106,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 3066,
+   "generated_at": 4019,
+   "discarded_tokens": 72,
+   "reason": "But that can't be right because Navin earned 1279.51 rupees, which converted to pula is 272.83 pula, same as Ian.",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "'Navin = Ian = 272,83' está levemente errado (Navin ≈ 275).",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c69",
+   "problem_idx": 108,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 3086,
+   "generated_at": 3180,
+   "discarded_tokens": 145,
+   "reason": "So, that doesn't work.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Inclusão-exclusão errada (64 ≠ 60).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c70",
+   "problem_idx": 116,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1045,
+   "generated_at": 1901,
+   "discarded_tokens": 918,
+   "reason": "Wait, no, that's not correct.",
+   "label": "real_colateral",
+   "confidence": "alta",
+   "note": "A nova equação está errada, mas o corte (918 tokens) leva a descoberta de n = 4 (certo).",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c71",
+   "problem_idx": 120,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 694,
+   "generated_at": 1339,
+   "discarded_tokens": 899,
+   "reason": "Wait, that can't be right because \\(x_1^2\\) can't be negative.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "x1² = -2: proporção montada errada.",
+   "reviewed_by_author": false
+  },
+  {
+   "id": "c72",
+   "problem_idx": 120,
+   "modes": [
+    "blind_rewind"
+   ],
+   "rewind_order": {
+    "blind_rewind": 1
+   },
+   "checkpoint": 2652,
+   "generated_at": 3404,
+   "discarded_tokens": 107,
+   "reason": "Wait, that can't be right.",
+   "label": "real",
+   "confidence": "baixa",
+   "note": "cos θ = √2 nos dois casos: erro de montagem.",
+   "reviewed_by_author": true
+  },
+  {
+   "id": "c73",
+   "problem_idx": 122,
+   "modes": [
+    "blind_rewind",
+    "rewind_kv"
+   ],
+   "rewind_order": {
+    "blind_rewind": 0,
+    "rewind_kv": 0
+   },
+   "checkpoint": 1488,
+   "generated_at": 1374,
+   "discarded_tokens": 68,
+   "reason": "Hmm, that can't be right.",
+   "label": "real",
+   "confidence": "alta",
+   "note": "Ângulo de 105°; o gabarito é 75°.",
+   "reviewed_by_author": false
+  }
+ ]
+}

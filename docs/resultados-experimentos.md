@@ -140,6 +140,25 @@ Nos 5 casos em que o blind_rewind venceu, **o corte jogou fora um raciocínio ce
 3. **O teto continua sendo o limite de tokens.** 72% dos problemas com detecção batem no limite no baseline; dos erros com detecção, só 1 (p65) é uma resposta errada terminada, e foi igual nos 3 modos.
 4. **O corte cego (blind_rewind) é neutro** (2 a 1 contra o baseline). Cortar sozinho não ajuda nem atrapalha; o efeito, para o bem e para o mal, vem da âncora.
 
+### Precisão do detector: rotulagem dos cortes (20/10/2026, exploratória)
+
+Para medir o tamanho do achado 2, cada um dos **73 cortes únicos** da validação foi rotulado (o 1º corte de cada problema é igual nos dois modos e conta uma vez). Os rótulos estão em [`dados/rotulos-cortes-validacao-v02.json`](dados/rotulos-cortes-validacao-v02.json).
+
+| Rótulo | Definição | Todos (73) | Só o 1º corte (31) |
+|---|---|---|---|
+| **Erro real** | o que o modelo declarou errado está errado, e o corte não levou nada certo que importasse | 44 (60%) | 16 |
+| **Real, mas levou algo certo** | erro real, mas o trecho cortado também tinha um resultado certo (às vezes a resposta) | 4 | 3 |
+| **Cortou o lado errado** | contradição real, mas o trecho cortado era o lado certo ou a correção do erro | 10 | 3 |
+| **Falso alarme** | nada estava errado | 15 | 9 |
+
+**4 em cada 10 cortes jogaram fora algo certo** (29 de 73). No 1º corte, que não depende do modo, foram 15 de 31.
+
+**De onde vêm os erros do detector:**
+- **Falsos alarmes:** perguntas (*"Is there any chance I made a mistake?"*), avisos genéricos (*"it's easy to make a mistake"*), eliminação de candidatos (*"t = 1 doesn't work"*, cortado 3 vezes seguidas pelo blind_rewind no p63) e dúvidas sobre afirmações certas (as 8 retas do p35; "nenhum arranjo fica fixo numa rotação de 90°" no p93). Um detector que entenda contexto poderia evitar boa parte.
+- **Lado errado:** em contradições ("2107, mas antes eu tinha 2037"), o corte sempre leva o resultado **mais recente**, que em 10 casos era o certo (6 deles no p37). A frase de erro não diz qual lado está errado, então **nenhuma lista de frases resolve isso**; é preciso outro sinal (verificar o valor, estados internos do modelo, ou esperar o modelo se decidir).
+
+**Limites:** os rótulos são do assistente; o autor conferiu os 16 de confiança baixa ou média e concordou com todos, numa leitura rápida (~2 min), que não substitui uma rotulagem independente. A análise foi feita depois de ver os dados e não estava no pré-registro. Os 57 de confiança alta não foram conferidos por uma segunda pessoa.
+
 **Consequência:** a tese "a âncora evita a amnésia" (A2, achado 1) continua de pé no mecanismo, mas só vale quando a falha detectada é real. A pergunta de pesquisa passa a ser **a precisão do gatilho**: com o detector léxico atual, a âncora faz mais mal que bem. O argumento de acurácia sai do pitch até haver uma versão que vença em problemas novos.
 
 ---
