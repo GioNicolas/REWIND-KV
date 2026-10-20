@@ -190,6 +190,38 @@ Avaliação nos cortes rotulados (`python -m rewind_kv.detector_eval docs/dados/
 
 ---
 
+## Validação da v0.3 — pré-registro (20/10/2026, escrito antes de rodar)
+
+**Por que um conjunto novo:** a v0.3 foi desenhada olhando o nível 4 inteiro (problemas 0–29 no A/A2, 30–127 na rotulagem dos cortes). O nível 4 agora é desenvolvimento. O teste é no **nível 5**, que nunca foi rodado nem lido.
+
+**O que muda em relação à v0.2** (o corte por caminho é o mesmo):
+1. **Detector estrito** (`--strict-detector`): não corta em perguntas, avisos genéricos, eliminação de candidatos e "let me recalculate".
+2. **Âncora de dúvida** (`--anchor-style doubt`): *Wait, earlier I tried "…" and then doubted it: … That doubt may or may not be right, so let me check it in a different way before relying on it.* Ela informa o que foi cortado sem afirmar que estava errado nem proibir o caminho, porque na v0.2 a certeza da âncora causou as 5 derrotas.
+
+**Código congelado:** tag `validacao-v0.3`. Nada no detector, no corte ou na âncora muda até a análise terminar.
+
+**Configuração:**
+- MATH-500 nível 5, **todos os 134 problemas** (índices 0–133).
+- Modos `baseline`, `rewind_kv` e `blind_rewind`, com `--rewind-scope branch --anchor-style doubt --strict-detector --max-new-tokens 4096`; semente = índice do problema; `--skip-untriggered`.
+- Kaggle, 2 × T4, 67 problemas em cada GPU (`notebooks/kaggle_validacao_v03.ipynb`).
+
+**Hipóteses** (nos problemas em que o baseline detectou pelo menos 1 falha com o detector estrito):
+- **H1 (principal):** `rewind_kv` acerta mais que `blind_rewind`.
+- **H2:** `rewind_kv` acerta mais que o `baseline`.
+
+**Teste:** o mesmo da v0.2. Teste do sinal exato, bilateral, nos pares discordantes; significativo se p < 0,05. Nenhum problema é excluído; se a execução cair, retoma-se de onde parou.
+
+**Secundárias (descritivas, sem teste):** tokens gerados, fração que bate o limite de 4096, número de rewinds, tamanho final do cache, e `blind_rewind` vs `baseline`.
+
+**Análise exploratória planejada:** rotular os cortes do nível 5 com os mesmos 4 rótulos, para medir a precisão do detector estrito em dados novos e comparar com os 64–70% medidos no nível 4.
+
+**Expectativa honesta:**
+- O nível 5 é mais difícil, e a maior parte do baseline deve bater no limite de 4096 tokens. Isso deixa pouco espaço para qualquer modo melhorar.
+- A âncora de dúvida pode acabar se comportando como o corte sem âncora. Nesse caso, ela deixaria de atrapalhar, mas o H1 seria nulo.
+- Com dezenas de problemas com detecção e talvez 5 a 15 pares discordantes, só um efeito grande seria significativo. Um resultado nulo ou na direção oposta será reportado como tal.
+
+---
+
 ## Candidatos para a v0.3 (anotados durante a validação; não mudam o código congelado)
 
 1. **Falsos positivos amplificados pela âncora (p15 do A2):** uma dúvida sobre uma conta certa vira *"It was wrong"* na âncora, e o modelo passa a acreditar no erro.

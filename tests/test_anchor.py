@@ -41,6 +41,16 @@ def test_note_anchor_matches_experiment_a():
     assert anchor == '[Note: "Wait, hold on, no." was wrong: that doesn\'t make sense. Do not repeat it.]\n\n'
 
 
+def test_doubt_anchor_does_not_forbid_going_back():
+    anchor = _gen(anchor_style=AnchorStyle.DOUBT).build_anchor(CUT, "Wait, but this contradicts my previous answer of 720.")
+    assert anchor == (
+        "Wait, earlier I tried \"Alternatively, if I fix Pierre's position, Rosa and Thomas sit next to him.\" "
+        "and then doubted it: this contradicts my previous answer of 720. "
+        "That doubt may or may not be right, so let me check it in a different way before relying on it.\n\n"
+    )
+    assert "wrong" not in anchor and "not repeat" not in anchor
+
+
 def test_hypothesis_is_truncated():
     gen = _gen(max_hypothesis_tokens=3)
     assert '"Alternatively, if I..."' in gen.build_anchor(CUT, "That's wrong.")

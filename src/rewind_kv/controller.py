@@ -19,7 +19,8 @@ O escopo do corte também é configurável:
 E o formato da âncora:
 
 - voice:  na voz do próprio modelo ("Wait, I already tried this before: ...") (padrão, v0.2);
-- note:   entre colchetes ("[Note: ... Do not repeat it.]"), usado no Experimento A.
+- note:   entre colchetes ("[Note: ... Do not repeat it.]"), usado no Experimento A;
+- doubt:  na voz do modelo, mas como dúvida a conferir, não como erro certo (v0.3).
 """
 
 from __future__ import annotations
@@ -51,19 +52,26 @@ class RewindScope(str, Enum):
 class AnchorStyle(str, Enum):
     VOICE = "voice"
     NOTE = "note"
+    DOUBT = "doubt"
 
 
 # No Experimento A o modelo ignorava o "[Note: ...]" e refazia a conta cortada;
 # a hipótese da v0.2 é que ele segue melhor um texto que parece escrito por ele mesmo.
+# Na validação da v0.2, o "It was wrong ... I will not repeat it" impedia o modelo de
+# voltar a um resultado certo cortado por engano; a âncora "doubt" informa sem proibir.
 ANCHOR_TEMPLATES = {
     AnchorStyle.VOICE: (
         'Wait, I already tried this before: "{hypothesis}" It was wrong: {reason} '
         "I will not repeat it, so let me do it differently.\n\n"
     ),
     AnchorStyle.NOTE: '[Note: "{hypothesis}" was wrong: {reason} Do not repeat it.]\n\n',
+    AnchorStyle.DOUBT: (
+        'Wait, earlier I tried "{hypothesis}" and then doubted it: {reason} '
+        "That doubt may or may not be right, so let me check it in a different way before relying on it.\n\n"
+    ),
 }
 # A âncora na voz do modelo cita a frase que abriu o caminho, que costuma ser mais longa.
-DEFAULT_HYPOTHESIS_TOKENS = {AnchorStyle.VOICE: 24, AnchorStyle.NOTE: 12}
+DEFAULT_HYPOTHESIS_TOKENS = {AnchorStyle.VOICE: 24, AnchorStyle.NOTE: 12, AnchorStyle.DOUBT: 24}
 
 
 @dataclass
@@ -83,6 +91,7 @@ class GenerationResult:
     mode: str
     rewind_scope: str
     anchor_style: str
+    strict_detector: bool
     text: str  # o que sobrou no cache depois do prompt (com âncoras, sem rascunhos cortados)
     prompt_tokens: int
     final_cache_len: int
@@ -183,6 +192,7 @@ class RewindKVGenerator:
         *,
         rewind_scope: RewindScope | str = RewindScope.BRANCH,
         anchor_style: AnchorStyle | str = AnchorStyle.VOICE,
+        strict_detector: bool = False,
         max_new_tokens: int = 4096,
         temperature: float = 0.6,  # valores recomendados pela DeepSeek para o R1
         top_p: float = 0.95,
@@ -197,6 +207,7 @@ class RewindKVGenerator:
         self.mode = Mode(mode)
         self.rewind_scope = RewindScope(rewind_scope)
         self.anchor_style = AnchorStyle(anchor_style)
+        self.strict_detector = strict_detector
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
         self.top_p = top_p
@@ -284,7 +295,7 @@ class RewindKVGenerator:
             if attempt_text.endswith("\n\n") and paragraphs[-1][1] != len(attempt_text):
                 paragraphs.append((len(tokens), len(attempt_text)))
 
-            signal = detect_failure(attempt_text)
+            signal = detect_failure(attempt_text, strict=self.strict_detector)
             if signal is None:
                 continue
             detected_reasons.append(signal.reason)
@@ -324,6 +335,7 @@ class RewindKVGenerator:
             mode=self.mode.value,
             rewind_scope=self.rewind_scope.value,
             anchor_style=self.anchor_style.value,
+            strict_detector=self.strict_detector,
             text=self.tokenizer.decode(tokens[prompt_len:], skip_special_tokens=True),
             prompt_tokens=prompt_len,
             final_cache_len=cache.get_seq_length(),

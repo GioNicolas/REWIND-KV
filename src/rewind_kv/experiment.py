@@ -62,7 +62,12 @@ def main() -> None:
         "--anchor-style",
         choices=[s.value for s in AnchorStyle],
         default=AnchorStyle.VOICE.value,
-        help="voice: na voz do modelo (v0.2); note: [Note: ...] (Exp. A)",
+        help="voice: na voz do modelo (v0.2); note: [Note: ...] (Exp. A); doubt: dúvida a conferir (v0.3)",
+    )
+    parser.add_argument(
+        "--strict-detector",
+        action="store_true",
+        help="não dispara em perguntas, avisos genéricos, eliminação de candidatos e 'let me recalculate' (v0.3)",
     )
     parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--seed", type=int, default=0)
@@ -118,6 +123,7 @@ def main() -> None:
                     mode,
                     rewind_scope=args.rewind_scope,
                     anchor_style=args.anchor_style,
+                    strict_detector=args.strict_detector,
                     max_new_tokens=args.max_new_tokens,
                 )
                 # Mesma semente em todos os modos: as gerações são idênticas até o primeiro corte.

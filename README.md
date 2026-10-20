@@ -73,7 +73,7 @@ python -m venv .venv
 .venv/Scripts/python -m pytest -q          # testes do crop/RoPE e do detector (CPU, ~10 s)
 ```
 
-O experimento com o modelo de verdade roda na GPU pelo notebook [`notebooks/colab_experimento_rewind_kv.ipynb`](notebooks/colab_experimento_rewind_kv.ipynb) (Colab) ou [`notebooks/kaggle_validacao_v02.ipynb`](notebooks/kaggle_validacao_v02.ipynb) (Kaggle, 2 GPUs, validação pré-registrada), ou direto com:
+O experimento com o modelo de verdade roda na GPU pelo notebook [`notebooks/colab_experimento_rewind_kv.ipynb`](notebooks/colab_experimento_rewind_kv.ipynb) (Colab) ou pelos notebooks do Kaggle (2 GPUs, validações pré-registradas): [`kaggle_validacao_v02.ipynb`](notebooks/kaggle_validacao_v02.ipynb) e [`kaggle_validacao_v03.ipynb`](notebooks/kaggle_validacao_v03.ipynb). Ou direto com:
 
 ```bash
 python -m rewind_kv.experiment --dataset math500 --level 5 --n 30
