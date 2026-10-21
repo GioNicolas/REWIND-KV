@@ -12,6 +12,7 @@ dependencies = ["torch", "transformers>=4.56", "datasets"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
+probe = ["scikit-learn"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
