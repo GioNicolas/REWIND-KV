@@ -325,6 +325,37 @@ Os **88 cortes únicos** foram rotulados com os mesmos 4 rótulos da v0.2 ([`dad
 - Os rótulos são do assistente, e os do nível 5 não foram conferidos pelo autor.
 - Os dois níveis já foram vistos na rotulagem, mas a sonda nunca viu o nível 5.
 
+## Sonda nos estados internos — resultado (21/10/2026)
+
+Rodou no Colab (T4) com o código da tag `sonda-v1` (`notebooks/colab_sonda.ipynb`), exatamente como pré-registrado.
+
+**Escolha no nível 4:**
+- Venceu a **camada 21, último token, C = 0,1**, com AUC 0,692 na validação cruzada.
+- As médias da frase de erro ficaram entre 0,46 e 0,58 em todas as camadas.
+- O último token das camadas 21 e 28 ficou entre 0,67 e 0,69.
+
+| Nível 5 (teste, uma vez só) | Precisão | Recall | AUC (IC 95%) |
+|---|---|---|---|
+| Cortar tudo (sem filtro) | 58,3% (49 de 84) | 100% | — |
+| **Sonda** (limiar 0,496, mantém 61 de 84) | **63,9%** | 79,6% | **0,605** (0,483–0,721) |
+| Só a entropia da frase de erro | 56,5% | 79,6% | 0,539 (0,410–0,670) |
+| **Critério pré-registrado** | **≥ 75%** | ≥ 70% | |
+
+**Resultado: critério NÃO atingido.**
+- A sonda tirou 22 cortes, mas só 12 deles eram ruins; os outros 10 eram erros reais.
+- O intervalo do AUC inclui 0,5.
+- **Controle:** com os rótulos do nível 4 embaralhados, o AUC médio foi 0,476, mas o maior dos 20 sorteios chegou a 0,662. O 0,692 escolhido mal se distingue de sorte, já que a escolha foi feita entre 24 configurações com 69 exemplos.
+- A entropia, que é o sinal de "incerteza" mais simples, não separa nada.
+
+**Leitura:** com estes dados, o estado interno no instante da detecção **não** separa um erro real de um falso alarme ou corte do lado errado bem o bastante para filtrar os cortes.
+
+**Limites:**
+- **Poucos dados:** 69 exemplos de treino.
+- **Rótulos de um só rotulador:** o assistente.
+- **A pergunta é mais difícil que a dos trabalhos vizinhos.** Eles preveem se uma resposta está certa (Zhang et al., 2025, arXiv:2504.05419; ver também arXiv:2605.09502). Aqui, a sonda precisaria saber, por exemplo, qual de duas contas anteriores estava certa.
+
+Uma sonda com muito mais dados rotulados talvez funcione, mas isso seria outro projeto, não um ajuste deste. Como combinado antes do teste, o resultado negativo passa a ser a contribuição.
+
 ---
 
 ## Candidatos para a v0.3 (anotados durante a validação; não mudam o código congelado)
