@@ -11,7 +11,7 @@
 
 - 📘 **[Guia de Estudo, Explicação Simples e Pitch (Caso Alguém Pergunte)](docs/guia-de-estudo-e-pitch.md):** documento feito para estudar a pesquisa do zero, entender como funciona sem jargão e responder perguntas de recrutadores, professores ou bancas técnicas.
 - 🗺️ **[Mapa da Literatura (18/10/2026)](docs/mapa-da-literatura.md):** vizinhos diretos (LPSR, Thought Rollback, Structured Thoughts), por que o caminho "cortar verificações" está ocupado e como o RewindKV se diferencia.
-- 🧪 **[Resultados dos Experimentos](docs/resultados-experimentos.md):** o que cada experimento mostrou (Experimento A: efeito nulo e por quê), as mudanças da v0.2 e a validação pré-registrada (H1 não confirmada: a âncora amplifica os falsos positivos do detector).
+- 🧪 **[Resultados dos Experimentos](docs/resultados-experimentos.md):** o que cada experimento mostrou (Experimento A: efeito nulo e por quê), as mudanças da v0.2 e as duas validações pré-registradas (v0.2 e v0.3: H1 não confirmada nas duas; o gargalo é a precisão do detector léxico, de ~50 a 60% em dados novos).
 - ⚙️ **[Especificação Técnica e Matemática](docs/especificacao-tecnica.md):** equações, funcionamento do `DynamicCache.crop()`, alinhamento de posição RoPE, estrutura de código e protocolo experimental.
 
 ---

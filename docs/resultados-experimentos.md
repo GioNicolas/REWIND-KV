@@ -220,6 +220,76 @@ Avaliação nos cortes rotulados (`python -m rewind_kv.detector_eval docs/dados/
 - A âncora de dúvida pode acabar se comportando como o corte sem âncora. Nesse caso, ela deixaria de atrapalhar, mas o H1 seria nulo.
 - Com dezenas de problemas com detecção e talvez 5 a 15 pares discordantes, só um efeito grande seria significativo. Um resultado nulo ou na direção oposta será reportado como tal.
 
+## Validação da v0.3 — resultado (21/10/2026)
+
+Rodou no Kaggle (2 × T4), sem erros, nos 134 problemas. A análise abaixo é exatamente a pré-registrada, recalculada localmente a partir dos `.jsonl` (bate com a saída do notebook). A geração foi idêntica ao baseline até o primeiro corte em todos os registros.
+
+| | Acurácia (134 problemas) | Acurácia (40 com detecção) | Bateu no limite de 4096 (40 com detecção) |
+|---|---|---|---|
+| baseline | 41,8% | 20,0% | 85% |
+| blind_rewind | 41,0% | 17,5% | 80% |
+| **rewind_kv** | **41,0%** | **17,5%** | **80%** |
+
+| Hipótese | Vitórias | Derrotas | p (sinal, bilateral) | Resultado |
+|---|---|---|---|---|
+| **H1:** rewind_kv > blind_rewind | 3 | 3 | 1,0 | **Não confirmada.** Empate. |
+| **H2:** rewind_kv > baseline | 1 | 2 | 1,0 | **Não confirmada.** |
+| (extra, não pré-registrada) blind_rewind vs baseline | 1 | 2 | 1,0 | sem diferença |
+
+**Leitura:** a v0.3 **não** melhora a acurácia. A âncora de dúvida tirou o dano sistemático da v0.2 (de 1 a 5 para 3 a 3), como o pré-registro previa que poderia acontecer, mas não trouxe ganho.
+
+**Os 6 problemas discordantes do H1** (exploratório, com os rótulos abaixo):
+
+| Problema | Vencedor | O que aconteceu |
+|---|---|---|
+| p4 | rewind_kv | 1º corte falso (dúvida sobre a resposta certa 6 − 5i); depois dele, o rewind_kv terminou certo e o blind bateu no limite |
+| p42 | rewind_kv | 1º corte falso (eliminação certa "x = −2 didn't work"); só o rewind_kv acertou, inclusive contra o baseline |
+| p64 | rewind_kv | 1º corte real, mas levou junto o "perímetro + 2πr" certo; o blind fez mais um corte e bateu no limite |
+| p53 | blind | depois da âncora, o rewind_kv cortou duas vezes a resposta certa 16/27 (dois falsos) |
+| p65 | blind | 1º corte falso (igual nos dois); depois dele, só o rewind_kv errou |
+| p94 | blind | o rewind_kv cortou a conta certa 150/1,32 = 113,6 (lado errado) |
+
+As vitórias também vêm de cortes falsos: nenhuma delas é a âncora corrigindo um erro real. Com a âncora de dúvida, o que acontece depois do corte parece variar como uma nova amostragem, para os dois lados.
+
+### Precisão do detector estrito em dados novos (rotulagem planejada no pré-registro)
+
+Os **88 cortes únicos** foram rotulados com os mesmos 4 rótulos da v0.2 ([`dados/rotulos-cortes-validacao-v03.json`](dados/rotulos-cortes-validacao-v03.json)).
+
+| Rótulo | Todos (88) | Só o 1º corte (38) |
+|---|---|---|
+| Erro real | 49 (56%) | 19 (50%) |
+| Real, mas levou algo certo | 4 | 3 |
+| Cortou o lado errado | 10 | 2 |
+| Falso alarme | 25 | 14 |
+
+| Precisão | Nível 4 (desenvolvimento) | **Nível 5 (novo)** |
+|---|---|---|
+| Detector da v0.2 | 60% | — |
+| Detector estrito, estimado | 70% (1º corte: 64%) | — |
+| **Detector estrito, medido** | — | **56% (1º corte: 50%)** |
+
+**O detector estrito não generalizou.** Os 70% eram ajuste aos 73 cortes usados para escrever as regras, como o próprio limite da avaliação avisava. No nível 5, a precisão ficou abaixo até da do detector antigo no nível 4.
+
+**De onde vêm os erros agora:**
+- **Falsos alarmes (25):**
+  - 10 são **eliminações de caso** escritas de outro jeito, que as regras não cobrem: *"1 ≠ 7, so it doesn't work"*, *"So, that's a contradiction"* no fim de uma prova por absurdo correta, *"that order doesn't work either"*.
+  - Os outros 15 são **dúvidas sobre afirmações certas**, como o pé da altura (p28, duas vezes), o limite E → 2 (p44) e a resposta 16/27 (p53, duas vezes).
+- **Lado errado (10):** além das contradições entre dois resultados, apareceu um tipo novo: **o corte leva a própria correção**. Em *"83 − 68 = 15, not 11. So, I think I made a mistake there"* (p115, nos dois modos), a frase de erro **é** a descoberta do erro, e o corte apaga a descoberta. No p126, os dois modos cortaram a resposta certa (1/201) e terminaram errado.
+
+**Limites:** os rótulos são do assistente e ainda não foram conferidos pelo autor (32 de 88 têm confiança média ou baixa). Os 56 de confiança alta dão uma proporção parecida (32 reais, 17 falsos, 7 lado errado).
+
+### Achados
+
+1. **A âncora de dúvida resolve o dano, mas também perde o efeito.** Na v0.2, a âncora que proibia (*"It was wrong … I will not repeat it"*) amplificava os falsos positivos. A de dúvida (*"may or may not be right"*) não amplifica, mas também não impede a repetição: o rewind_kv refez o mesmo erro mesmo com a âncora: três vezes no p100 (r = 7) e quatro no p110 (a fórmula errada do ortocentro). Já o blind_rewind repetiu o mesmo 7,5 seis vezes no p88, e o rewind_kv só uma vez. **A âncora que impede repetir é a mesma que impede redescobrir o certo.** Qual das duas ganha depende só da precisão do detector.
+2. **O detector léxico é o gargalo, e regras de frase não generalizam.** Cerca de metade dos cortes em dados novos joga fora algo certo ou não tinha erro. Cada regra nova tapa um jeito de escrever e o modelo usa outro.
+3. **No nível 5, o teto é o limite de tokens.** 85% dos problemas com detecção batem no limite de 4096 no baseline. Dos 78 erros do baseline nos 134 problemas, 71 são por limite. Os cortes economizam cerca de 10% do cache final nos problemas com detecção (3.638 vs 4.060 tokens), pouco para mudar quem termina.
+4. **Detalhe de implementação:** em 2 problemas (p52, p57) houve detecção, mas nenhum corte, porque o corte teria menos de 32 tokens (`min_cut_tokens`). Nesses casos, os três modos foram iguais.
+
+**Consequência:** duas validações pré-registradas seguidas sem efeito na acurácia. Com um detector léxico, a âncora não tem como ajudar mais do que atrapalha. O que poderia mudar o quadro, a decidir:
+- um sinal que não seja de palavras para decidir se o corte é real, como verificar o valor cortado ou usar uma sonda nos estados internos;
+- um orçamento maior de tokens, ou um conjunto em que os erros terminem antes do limite;
+- registrar o resultado negativo como contribuição: o rollback com âncora funciona como mecanismo, mas o gatilho léxico tem precisão de cerca de 50 a 60% em dados novos.
+
 ---
 
 ## Candidatos para a v0.3 (anotados durante a validação; não mudam o código congelado)
