@@ -1,54 +1,116 @@
-# Guia de Estudo e Pitch do RewindKV (Como Funciona e Como Explicar para Qualquer Pessoa)
+# Guia de Estudo e Pitch do RewindKV
 
-Este documento foi preparado para que você possa **estudar a sua própria pesquisa** e ter na ponta da língua a resposta exata caso um recrutador de Big Tech, um pesquisador, um professor ou um avaliador de *Tech Fellow* pergunte sobre o seu trabalho.
+Este guia é para você estudar a sua própria pesquisa e saber explicá-la a qualquer pessoa: recrutador, professor, banca ou colega. Ele conta a história **como ela aconteceu**, inclusive o resultado negativo, porque é isso que você vai precisar defender.
 
----
-
-## 1. O "Pitch de Elevador" (Como explicar em 30 segundos)
-
-Se alguém perguntar: **"O que você está pesquisando na área de IA?"**, responda assim:
-
-> *"Eu criei o **RewindKV**, um algoritmo de gerenciamento de memória para modelos modernos de raciocínio, como o DeepSeek-R1 e o OpenAI o1. Hoje, quando esses modelos tentam resolver um problema difícil de matemática ou código e percebem que erraram no meio da conta, eles mudam de ideia, mas deixam milhares de palavras do cálculo errado gravadas na memória ativa da placa de vídeo (o KV-Cache). Isso estoura a memória e ainda confunde a atenção do modelo nas tentativas seguintes. O RewindKV detecta quando uma hipótese falhou, rebobina fisicamente o KV-Cache apagando todo o rascunho errado em menos de 1 milissegundo e deixa no lugar apenas uma 'Âncora de Falha' de uma linha, dizendo por que aquele caminho não funcionou. Com isso, a IA gasta muito menos memória, responde mais rápido e ainda erra menos."*
+> **Atualizado em 21/10/2026**, depois das duas validações pré-registradas, da sonda e do teste do oráculo. A versão anterior prometia ganho de acurácia e de memória que os dados não confirmaram.
 
 ---
 
-## 2. Qual é a Contribuição Científica Exata? (Se perguntarem: "O que isso tem de novo?")
+## 1. O pitch de 30 segundos
 
-Se um cientista ou avaliador perguntar: **"Mas já não existem vários compressores de KV-Cache (como H2O, SnapKV, R-KV)?"**, a sua resposta técnica é:
+> *"Eu estudei se dá para melhorar modelos de raciocínio, como o DeepSeek-R1, apagando da memória deles (o KV-cache) os trechos em que eles mesmos dizem que erraram, e deixando no lugar um bilhete curto sobre o que deu errado. Implementei o mecanismo num modelo de 1,5 bilhão de parâmetros e testei com rigor: duas validações com o critério escrito antes de rodar. Não melhorou a acurácia, e eu descobri por quê. Quando o modelo diz 'errei', só metade das vezes ele errou de verdade. E mesmo quando o corte pega um erro real, nos problemas difíceis o modelo continua ficando sem espaço para pensar. O gargalo não é a memória: é saber quando o modelo errou."*
 
-1. **Compressores comuns apagam palavras soltas; o RewindKV apaga ramos lógicos errados inteiros:**
-   Os métodos atuais (como *R-KV* e *InfoKV*) tentam adivinhar quais palavras individuais receberam pouca atenção. Só que quando a IA faz uma conta errada, ela presta **muita atenção** naquela conta! Então os compressores atuais mantêm a conta errada inteira na memória.
-2. **Eliminação da "Contaminação de Rollback" (*Rollback Inconsistency*):**
-   Em agosto de 2026, pesquisadores demonstraram no artigo *Aborted but Not Forgotten* ([arXiv:2608.15939](https://arxiv.org/abs/2608.15939)) que deixar caminhos descartados dentro do KV-Cache "envenena" a atenção do modelo nos passos seguintes. Até onde verificamos na literatura (out/2026), o **RewindKV** é o único que resolve isso cortando **ramos inteiros** do KV-Cache **dentro do fluxo contínuo de pensamento (`<think>`)** e deixando uma âncora em texto no lugar. O mais próximo, o LPSR ([arXiv:2604.18567](https://arxiv.org/abs/2604.18567)), volta só 1 token e corrige com um vetor latente, sem testar modelos de raciocínio. O Thought Rollback (ICML 2024) tem a ideia da "experiência da tentativa falha", mas no nível de *prompt*, com várias chamadas ao modelo. Veja o [Mapa da Literatura](mapa-da-literatura.md).
-3. **Solução do "Paradoxo da Amnésia" via Âncoras de Falha:**
-   Se você apenas rebobinar a memória da IA para antes do erro (corte cego), ela esquece que tentou aquele caminho e faz exatamente a mesma conta errada de novo, entrando em loop infinito! A contribuição central do **RewindKV** é substituir 1.000 tokens de cálculo errado por **15 tokens de uma Âncora de Falha** (`[Nota: caminho X falhou por motivo Y]`). Você economiza 98% da memória daquele ramo sem causar amnésia no modelo!
+**Se perguntarem "então deu errado?":**
+
+> *"A hipótese não se confirmou, e isso é um resultado. Eu testei de forma que não desse para me enganar: critério escrito antes, problemas que o método nunca tinha visto, teste estatístico combinado antes. E consegui explicar o fracasso em três camadas, com dados. Isso é útil para quem for tentar a mesma ideia."*
 
 ---
 
-## 3. Como Funciona Por Baixo do Capô (Para Você Estudar a Lógica)
+## 2. Os conceitos, na ordem em que você deve estudar
 
-Imagine que a memória da IA (o **KV-Cache**) é uma **fita cassete** onde cada palavra gerada ocupa 1 centímetro de fita:
+### 2.1 Como um modelo de linguagem escreve
+- Escreve **um token por vez** (um token é um pedaço de palavra). A cada passo, olha tudo o que já foi escrito e sorteia o próximo token entre os mais prováveis.
+- O sorteio usa uma **semente**: mesma semente, mesmo texto. Usamos a mesma semente nos três modos, então o texto é idêntico até o primeiro corte e a comparação é justa.
 
-1. **Posição 0 a 100 (O Enunciado):** O usuário faz a pergunta de matemática. A fita está no centímetro `100`.
-2. **O Checkpoint (`L_0 = 100`):** A IA começa a pensar (`<think>`). O RewindKV anota no caderno: *"A tentativa 1 começou no centímetro 100"*.
-3. **A Conta Errada (Posição 101 a 900):** A IA chuta uma fórmula e vai escrevendo 800 palavras de contas. A fita chega no centímetro `900`.
-4. **O Momento do Erro (Posição 900):** A IA escreve: *"Espera, deu divisão por zero! Esse caminho com $x=2$ não funciona!"*
-5. **A Mágica do RewindKV:**
-   * Em vez de deixar a fita no centímetro `900` (carregando 800 centímetros de lixo), o RewindKV:
-   * Copia só o resumo do erro (15 palavras): `"[Tentativa com x=2 deu divisão por zero. Tente outro valor.]"`
-   * **Corta a fita de volta para o centímetro 100** (usando a função `past_key_values.crop(100)` da placa de vídeo, que leva 0,01 milissegundo!).
-   * Grava as 15 palavras da Âncora do centímetro `100` ao `115`.
-   * Marca o novo checkpoint no `115` e deixa a IA continuar pensando com a cabeça limpa!
+### 2.2 Modelos de raciocínio
+- Pensam em voz alta dentro de `<think>…</think>` antes de responder. Nesse rascunho eles duvidam e voltam atrás: *"Wait, that's not right"*, *"Alternatively…"*.
+- O nosso modelo é o `DeepSeek-R1-Distill-Qwen-1.5B`. Ele cabe numa GPU gratuita (T4 do Colab/Kaggle).
+- Testamos no **MATH-500**: 500 problemas de competição em 5 níveis de dificuldade. Usamos os níveis 4 e 5, os mais difíceis.
+
+### 2.3 KV-cache
+- É a **memória de curto prazo** do modelo. Para cada token já escrito, guarda dois vetores (K e V), para não recalcular tudo a cada token novo.
+- No nosso modelo são **28 KB por token**; 4000 tokens ≈ 110 MB, enquanto o modelo ocupa ~3,5 GB. Por isso a economia de memória do corte é pequena aqui.
+- **Cortar o cache tem o mesmo efeito que apagar o fim do texto e continuar dali.** O cache só torna isso barato (`DynamicCache.crop()`).
+- **RoPE** (a posição de cada token): como o corte é sempre no fim, as posições continuam em sequência e nada se embaralha.
+
+### 2.4 A ideia do RewindKV
+1. Marcar onde começa cada tentativa (*checkpoint*).
+2. Detectar quando o modelo declara um erro (frases como *"I made a mistake"*).
+3. Cortar o KV-cache até o início do caminho que falhou.
+4. Colocar no lugar uma **âncora**: um bilhete curto com o que foi tentado e por que deu errado.
+5. Deixar o modelo continuar.
+
+**Por que a âncora?** Sem ela, o modelo esquece o que tentou e pode repetir o mesmo erro (amnésia). No nível 5, o corte sem âncora refez a mesma conta errada 6 vezes no problema 88; com âncora, uma vez.
+
+### 2.5 O experimento: três modos
+| Modo | O que faz | Para que serve |
+|---|---|---|
+| `baseline` | nada | o normal |
+| `blind_rewind` | corta, sem âncora | isola o efeito de cortar |
+| `rewind_kv` | corta e coloca a âncora | comparado com o blind, isola o efeito da âncora (**H1, a hipótese principal**) |
+
+### 2.6 Pré-registro e teste do sinal
+- **Pré-registro:** antes de rodar, escrevemos e commitamos no git as hipóteses, os problemas e o teste. Ninguém pode dizer que mudamos a regra depois de ver o resultado.
+- **Por que importa:** no conjunto de desenvolvimento (A2), a v0.2 ganhou de 3 a 1. Em problemas novos, perdeu de 1 a 5. O 3 a 1 era ajuste aos problemas que tínhamos olhado.
+- **Teste do sinal:** só contam os problemas em que um modo acertou e o outro errou. Se não houvesse diferença, cada um seria cara ou coroa. O **p-valor** é a chance de ver um placar tão desequilibrado só por sorte. Combinamos que só p < 0,05 contaria.
+
+### 2.7 Os resultados
+| Experimento | Problemas | H1: rewind_kv vs blind | p |
+|---|---|---|---|
+| Experimento A (v0.1) | 30 do nível 4 | (sem blind) efeito nulo | — |
+| A2 (v0.2, desenvolvimento) | 10 do nível 4 | 3 a 1 | 0,63 |
+| **Validação v0.2** | 98 novos do nível 4 | **1 a 5** | 0,22 |
+| **Validação v0.3** | 134 do nível 5 | **3 a 3** | 1,0 |
+
+### 2.8 Por que deu errado: três camadas
+1. **O gatilho é ruim.** Rotulamos à mão 161 cortes. Em problemas novos, só **56%** eram erro real. Os outros eram:
+   - **falso alarme:** dúvida sobre uma conta certa, ou eliminação legítima de um caso (*"1 ≠ 7, so it doesn't work"*);
+   - **lado errado:** em *"deu 113, mas antes deu 136"*, o corte apaga o mais recente, que às vezes era o certo; ou o corte apaga a própria correção (*"83 − 68 = 15, not 11"*).
+
+   Regras de palavras mais rígidas chegaram a 70% nos problemas em que foram escritas e caíram para 56% nos novos.
+2. **A âncora amplifica o que o gatilho decide.** A âncora que proíbe (*"It was wrong, I will not repeat it"*) impede o modelo de redescobrir o que estava certo: as 5 derrotas da v0.2 foram todas cortes de coisa certa. A âncora de dúvida (v0.3) não atrapalha, mas também não impede repetir.
+3. **Mesmo com o gatilho perfeito, não haveria ganho aqui (teste do oráculo).** Nos 28 problemas em que todos os cortes foram erro real, a acurácia praticamente não mudou. Quase todos acabam sem tokens nos três modos. E o limite de 4096 conta os tokens cortados, então o corte não devolve espaço para pensar.
+
+### 2.9 A sonda (probe)
+- Tentamos ler o **estado interno** do modelo (os 1.536 números de cada camada) no momento do "errei", em vez das palavras.
+- Uma regressão logística, treinada em 69 cortes do nível 4 e testada uma vez em 84 do nível 5, com critério escrito antes: **precisão ≥ 75% e recall ≥ 70%**.
+- Resultado: **precisão 63,9%** (cortar tudo dá 58%), **AUC 0,605** (0,5 é chute, 1,0 é perfeito). Não passou.
+- **Precisão:** dos cortes mantidos, quantos eram erro real. **Recall:** dos erros reais, quantos foram mantidos.
 
 ---
 
-## 4. Perguntas Difíceis que Podem te Fazer (e Como Responder)
+## 3. O que é contribuição (e o que não é)
 
-### Pergunta 1: *"Quando você corta o KV-Cache no meio e cola uma frase nova, não bagunça a numeração da posição das palavras (o RoPE — Rotary Position Embeddings)?"*
-* **Sua resposta:** *"Não! Porque nós não apagamos buracos no meio mantendo índices antigos no final. Nós usamos o `crop(L_0)` exatamente na ponta ativa da geração e fazemos o forward pass dos 15 tokens da Âncora usando os índices de posição consecutivos $L_0 + 1 \dots L_0 + 15$. Assim, a geometria do RoPE continua 100% contínua e exata, sem precisar recalcular o prompt inicial."*
+**É contribuição:**
+1. O mecanismo de corte do KV-cache com âncora em texto, dentro do `<think>`, implementado e testado (código aberto, 84 testes).
+2. **A medida de quanto valem os autoavisos de erro do modelo:** 161 cortes rotulados, com cerca de 50–60% de precisão em problemas novos e uma classificação dos tipos de erro do gatilho.
+3. **A âncora como amplificadora:** proibir evita repetir, mas impede redescobrir o certo; duvidar é seguro, mas não impede repetir.
+4. Dois testes que mostram onde está o gargalo: a sonda e o oráculo.
+5. O método: duas validações pré-registradas, com resultado negativo explicado.
 
-### Pergunta 2: *"Como o algoritmo sabe a hora certa de dar o Rewind sem cortar uma conta que estava certa?"*
-* **Sua resposta:** *"Nós dividimos isso em duas fases. Na Fase 1, aproveitamos a própria capacidade de auto-verificação dos modelos de raciocínio (como o DeepSeek-R1), que emitem marcadores explícitos quando encontram uma contradição. Na Fase 2, usamos um classificador discriminativo ultrarrápido que monitora o salto de entropia nas camadas internas para confirmar que a hipótese realmente foi descartada antes de acionar o corte."*
+**Não é contribuição (não diga):**
+- Que o RewindKV melhora a acurácia.
+- Que economiza muita memória (neste modelo, ~10% do cache, que já é pequeno perto do modelo).
+- Que é "o único" ou "o primeiro" a fazer rollback de KV-cache. Há vizinhos próximos: LPSR, Thought Rollback e sondas de correção de raciocínio (ver o [Mapa da Literatura](mapa-da-literatura.md)).
 
-### Pergunta 3: *"Você precisou de um supercomputador para treinar isso?"*
-* **Sua resposta:** *"Zero supercomputador. O RewindKV é um algoritmo de inferência (Test-Time Compute / Memory Management). Ele se acopla a qualquer modelo já treinado (como Qwen, Llama ou DeepSeek) sem alterar os pesos da rede neural, podendo ser validado em uma única GPU comum."*
+---
+
+## 4. Perguntas difíceis (e respostas honestas)
+
+**"Cortar o KV-cache não bagunça as posições (RoPE)?"**
+> "Não. O corte é sempre no fim do cache. A âncora entra nas posições seguintes, em sequência, como se o texto tivesse sido escrito assim desde o começo. Testamos isso: o resultado é idêntico a gerar o texto editado do zero."
+
+**"Qual a diferença para compressores de KV-cache, como R-KV ou H2O?"**
+> "Eles apagam tokens soltos que recebem pouca atenção, para economizar memória. A gente apagava um raciocínio inteiro que o próprio modelo declarou errado e deixava uma explicação no lugar. O objetivo era a qualidade do raciocínio, não a memória."
+
+**"Como vocês sabiam quando cortar?"**
+> "Por frases de erro do próprio modelo, como 'I made a mistake'. E esse foi o problema: medimos à mão, e só cerca de metade dessas frases eram erro de verdade."
+
+**"Por que não usaram um modelo maior?"**
+> "Para caber numa GPU gratuita e permitir validações grandes. É uma limitação: em modelos maiores, os avisos de erro podem ser mais confiáveis. Fica como trabalho futuro."
+
+**"Se o detector fosse perfeito, funcionaria?"**
+> "Nos nossos dados, não. No teste do oráculo, mesmo nos problemas em que todos os cortes pegaram erros reais, a acurácia não mudou, porque o modelo ficava sem tokens nos três modos. Talvez funcione em outro cenário: mais tokens, ou problemas em que o modelo termina antes do limite."
+
+**"Precisou treinar o modelo?"**
+> "Não. O RewindKV atua só na geração, sem mudar os pesos. A única coisa treinada foi a sonda, uma regressão logística pequena."
