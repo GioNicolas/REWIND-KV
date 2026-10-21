@@ -290,6 +290,41 @@ Os **88 cortes únicos** foram rotulados com os mesmos 4 rótulos da v0.2 ([`dad
 - um orçamento maior de tokens, ou um conjunto em que os erros terminem antes do limite;
 - registrar o resultado negativo como contribuição: o rollback com âncora funciona como mecanismo, mas o gatilho léxico tem precisão de cerca de 50 a 60% em dados novos.
 
+## Sonda nos estados internos: teste de viabilidade — pré-registro (21/10/2026, escrito antes de rodar)
+
+**Pergunta:** o estado interno do modelo no momento da detecção separa um **erro real** de um **falso alarme / lado errado** melhor do que as palavras? Se não separar, o caminho da sonda morre aqui e o resultado negativo vira a contribuição.
+
+**Dados (só os que já existem, sem gerar nada novo):**
+- **Treino:** os 73 cortes rotulados do nível 4 (validação da v0.2).
+- **Teste:** os 88 cortes rotulados do nível 5 (validação da v0.3), usados **uma vez só**, no fim.
+- **Alvo:** `real` = 1; `falso` e `lado_errado` = 0. Os `real_colateral` (4 + 4) ficam de fora. Ficam 44 contra 25 no treino e 49 contra 35 no teste.
+- **Contexto de cada corte:** prompt + texto que o modelo tinha naquele momento (com as âncoras anteriores) até o fim do texto cortado, que é o instante em que o detector disparou. O texto é retokenizado, então pode haver pequenas diferenças em relação aos tokens amostrados.
+
+**Atributos:**
+- **Estado oculto** do modelo (`hidden_states`), em duas versões: no último token e na média dos tokens da frase de erro.
+- **Entropia** da próxima palavra, na média da frase de erro. É o sinal mais simples de "incerteza", usado como comparação.
+
+**Classificador:** regressão logística com regularização L2, atributos padronizados.
+
+**Escolha do modelo (só no nível 4):**
+- Validação cruzada deixando um problema de fora por vez.
+- Grade: camada ∈ {7, 14, 21, 28} × posição ∈ {último token, média da frase} × C ∈ {0,01; 0,1; 1}.
+- Vence a configuração de maior AUC.
+- **Limiar:** o maior que mantém ≥ 80% dos erros reais nas previsões da validação cruzada.
+- Depois, o classificador é treinado de novo nos 69 cortes do nível 4 e aplicado ao nível 5 sem nenhum ajuste.
+
+**Critério de sucesso (no nível 5):** **precisão ≥ 75% e recall ≥ 70%** (fração dos erros reais que continuam sendo cortados). Para comparação, cortar tudo dá precisão de 58% (49 de 84) e recall de 100%. Se só um dos dois limites for atingido, o resultado conta como fracasso.
+
+**Relatado também, sem critério:**
+- AUC no nível 5, com intervalo de bootstrap.
+- O mesmo procedimento usando só a entropia.
+- O AUC da validação cruzada com rótulos embaralhados, como controle.
+
+**Limites conhecidos:**
+- São 69 exemplos de treino em 1.536 dimensões. O teste diz se existe sinal, não o tamanho final do efeito.
+- Os rótulos são do assistente, e os do nível 5 não foram conferidos pelo autor.
+- Os dois níveis já foram vistos na rotulagem, mas a sonda nunca viu o nível 5.
+
 ---
 
 ## Candidatos para a v0.3 (anotados durante a validação; não mudam o código congelado)
