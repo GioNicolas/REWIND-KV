@@ -356,6 +356,21 @@ Rodou no Colab (T4) com o código da tag `sonda-v1` (`notebooks/colab_sonda.ipyn
 
 Uma sonda com muito mais dados rotulados talvez funcione, mas isso seria outro projeto, não um ajuste deste. Como combinado antes do teste, o resultado negativo passa a ser a contribuição.
 
+## Teste do oráculo: e se o gatilho fosse perfeito? (21/10/2026, exploratório)
+
+Ideia sugerida numa revisão da literatura feita com o Gemini: antes de buscar um gatilho melhor, ver o que acontece nos problemas em que o gatilho atual **já acertou**. São os problemas em que todos os cortes do rewind_kv foram erro real, segundo os rótulos.
+
+| | Problemas | Acertos baseline / blind / rewind_kv | Baseline no limite de 4096 | rewind_kv vs baseline |
+|---|---|---|---|---|
+| Nível 4 (v0.2) | 14 | 3 / 3 / 4 | 12 | 1–0 |
+| Nível 5 (v0.3) | 14 | 1 / 1 / 1 | 13 | 0–0 |
+| (só o 1º corte real, nível 4) | 16 | 4 / 4 / 4 | 13 | 1–1 |
+| (só o 1º corte real, nível 5) | 19 | 2 / 3 / 1 | 18 | 0–1 |
+
+**Leitura:** mesmo quando o corte pega um erro de verdade, a acurácia praticamente não muda. Quase todos esses problemas batem no limite de tokens, nos três modos. **Um gatilho melhor não teria salvado estas validações:** o gargalo aqui é o modelo de 1,5B não conseguir terminar os problemas difíceis, não o rascunho errado no cache. São poucos problemas (28), então isso é uma indicação, não uma prova.
+
+**Detalhe de desenho que pesa nisso:** o limite de 4096 conta todos os tokens gerados, inclusive os que depois foram cortados (`generated` em `controller.py` nunca diminui). O corte libera memória, mas **não devolve orçamento de tokens**. Com orçamento fixo, o rewind só pode ajudar se o texto que vem depois do corte for melhor, e não por dar mais espaço para pensar.
+
 ---
 
 ## Candidatos para a v0.3 (anotados durante a validação; não mudam o código congelado)
